@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Stories</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;}
+  html,body{height:100%;background:#0a0a0a;overflow:hidden;overscroll-behavior:none;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;}
+  #app{position:fixed;inset:0;display:flex;flex-direction:column;}
+
+  /* ---- Barra superior (réplica Instagram) ---- */
+  #topbar{display:flex;align-items:center;justify-content:space-between;
+    padding:10px 16px 8px 18px;padding-top:max(12px,env(safe-area-inset-top));
+    color:#fff;flex:0 0 auto;}
+  #topbar .txt{font-size:18px;font-weight:600;letter-spacing:.2px;}
+  #topbar .txt.bold{font-weight:700;}
+  #tools{display:flex;align-items:center;gap:11px;}
+  .tool{width:34px;height:34px;border-radius:50%;border:2px solid #fff;
+    display:flex;align-items:center;justify-content:center;}
+  .tool.sel{background:#fff;}            /* herramienta seleccionada (lápiz), como en Instagram */
+  .tool svg{display:block;}
+
+  /* ---- Lienzo (story) ---- */
+  #stage{flex:1 1 auto;position:relative;margin:2px 9px 0 9px;border-radius:26px;
+    background:#000;overflow:hidden;touch-action:none;}
+  #art{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none;}
+  /* pestañita lateral izquierda (cajón de plantillas) */
+  #sidetab{position:absolute;left:-9px;top:50%;transform:translateY(-50%);
+    width:13px;height:46px;border-radius:8px;background:#fff;opacity:.95;}
+
+  /* ---- Paleta inferior (réplica Instagram) ---- */
+  #palette{display:flex;align-items:center;justify-content:space-between;
+    padding:14px 14px 4px 14px;flex:0 0 auto;}
+  .sw{width:30px;height:30px;border-radius:50%;flex:0 0 auto;box-shadow:0 0 0 2px rgba(0,0,0,.25);}
+  .eyedrop{width:33px;height:33px;border-radius:50%;flex:0 0 auto;background:#fff;
+    display:flex;align-items:center;justify-content:center;}
+  /* puntos de página */
+  #dots{display:flex;justify-content:center;gap:7px;
+    padding:8px 0 calc(8px + env(safe-area-inset-bottom)) 0;flex:0 0 auto;}
+  #dots .d{width:7px;height:7px;border-radius:50%;background:#3a3a3a;transition:background .25s;}
+  #dots .d.on{background:#cfcfcf;}      /* primer punto = indicador secreto */
+  #dots .d.armed{background:#8a8a8a;}
+
+  /* ---- Ayuda ---- */
+  #help{position:fixed;inset:0;background:rgba(0,0,0,.94);color:#eee;z-index:50;
+    display:flex;flex-direction:column;justify-content:center;gap:16px;padding:32px;
+    font-size:16px;line-height:1.5;}
+  #help h1{font-size:21px;}
+  #help b{color:#fff;}
+  #help .small{font-size:13px;color:#9a9a9a;}
+  #help button{margin-top:8px;padding:15px;border:none;border-radius:13px;background:#fff;color:#000;font-size:17px;font-weight:700;}
+  .hidden{display:none!important;}
+
+  /* Aviso flotante (carga de voz, errores) */
+  #toast{position:fixed;left:50%;transform:translateX(-50%);
+    top:max(58px,calc(env(safe-area-inset-top) + 44px));
+    background:rgba(20,20,20,.93);color:#fff;font-size:13px;line-height:1.35;
+    padding:9px 14px;border-radius:11px;max-width:84%;text-align:center;
+    opacity:0;transition:opacity .3s;z-index:45;pointer-events:none;}
+
+  /* ---- Modo manual (practicar sin voz) ---- */
+  #manual{position:absolute;top:64px;left:50%;transform:translateX(-50%);z-index:40;
+    display:flex;gap:8px;background:#161616;padding:8px;border-radius:11px;box-shadow:0 6px 24px rgba(0,0,0,.5);}
+  #manual input{width:175px;padding:9px;border-radius:8px;border:1px solid #333;background:#000;color:#fff;font-size:15px;}
+  #manual button{padding:9px 13px;border-radius:8px;border:none;background:#fff;font-weight:700;}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="topbar">
+    <div class="txt" id="undoBtn">Deshacer</div>
+    <div id="tools">
+      <div class="tool sel"><svg width="17" height="17" viewBox="0 0 24 24"><path d="M12 2 L17 13 a5 5 0 0 1 -10 0 Z" fill="#0a0a0a"/></svg></div>
+      <div class="tool"><svg width="17" height="17" viewBox="0 0 24 24"><path d="M12 5 L12 19 M6 11 L12 5 L18 11" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+      <div class="tool"><svg width="17" height="17" viewBox="0 0 24 24"><path d="M12 2 L16 12 v6 a4 4 0 0 1 -8 0 v-6 Z" fill="none" stroke="#fff" stroke-width="2.2" stroke-linejoin="round"/></svg></div>
+      <div class="tool"><svg width="18" height="18" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="#fff" stroke-width="2"/><circle cx="9" cy="9" r="1.4" fill="#fff"/><circle cx="15" cy="9" r="1.4" fill="#fff"/><circle cx="9.5" cy="15" r="1.4" fill="#fff"/><circle cx="14.5" cy="15" r="1.4" fill="#fff"/></svg></div>
+      <div class="tool"><svg width="16" height="16" viewBox="0 0 24 24"><rect x="6" y="3" width="12" height="18" rx="3" fill="none" stroke="#fff" stroke-width="2.2"/><path d="M9 8 h6 M9 12 h6" stroke="#fff" stroke-width="1.8" stroke-linecap="round"/></svg></div>
+    </div>
+    <div class="txt bold">Listo</div>
+  </div>
+
+  <div id="stage">
+    <div id="sidetab"></div>
+    <canvas id="art"></canvas>
+  </div>
+
+  <div id="palette">
+    <div class="eyedrop"><svg width="19" height="19" viewBox="0 0 24 24"><path d="M19 3 a2.5 2.5 0 0 0 -3.5 0 L13 5.5 l-1-1 -1.5 1.5 1 1 -7 7 V18 h3.5 l7-7 1 1 1.5-1.5 -1-1 2.5-2.5 a2.5 2.5 0 0 0 0-3.5 Z" fill="none" stroke="#111" stroke-width="1.6" stroke-linejoin="round"/></svg></div>
+    <div class="sw" style="background:#ffffff"></div>
+    <div class="sw" style="background:#000000;box-shadow:0 0 0 2px #fff"></div>
+    <div class="sw" style="background:#1a8cff"></div>
+    <div class="sw" style="background:#21d063"></div>
+    <div class="sw" style="background:#ffd23f"></div>
+    <div class="sw" style="background:#ff8a1f"></div>
+    <div class="sw" style="background:#ff2d55"></div>
+    <div class="sw" style="background:#ff2b8f"></div>
+    <div class="sw" style="background:#a24bff"></div>
+  </div>
+
+  <div id="dots"><div class="d on"></div><div class="d"></div><div class="d"></div></div>
+</div>
+
+<div id="toast"></div>
+
+<div id="manual" class="hidden">
+  <input id="manualInput" placeholder="escribe: una casa..." autocomplete="off" autocapitalize="off">
+  <button id="manualGo">Ir</button>
+</div>
+
+<div id="help">
+  <h1>🎩 Réplica de Instagram Stories</h1>
+  <div>Es la pantalla de dibujo de Instagram: <b>puedes dibujar de verdad</b> con el dedo en blanco para que el espectador se lo crea.</div>
+  <div>El truco: al dejar el móvil, <b>toca el cuentagotas</b> (abajo-izquierda) para activar la escucha en secreto. Luego di lo que "ves": <b>"veo una casa"</b>. Se borra tu garabato y dibuja <b>solo ese objeto</b> con el pincel de Instagram.</div>
+  <div class="small">Aviso secreto: el primer puntito de abajo se ilumina al escuchar. El espectador no lo nota. "Deshacer" borra tu último trazo; triple toque = modo manual para practicar.</div>
+  <div class="small">Solo objetos del repertorio (siempre garabato). 🔇 <b>Sin ningún tono</b> al escuchar: usa su propio motor de voz (no el dictado de Apple).</div>
+  <div class="small">🎤 La <b>primera vez</b> descarga el motor de voz (unos segundos, necesita internet solo esa vez). Después va sin conexión.</div>
+  <div class="small" id="iosWarn" style="display:none;color:#ffb84d;">⚠️ Abierta como "app" (pantalla de inicio), en iPhone el micro puede fallar. Si no te escucha, ábrela en <b>Safari</b>.</div>
+  <button id="helpClose">Entendido, empezar</button>
+</div>
+
+<script>
+(function(){
+"use strict";
+
+/* ===================== Banco de garabatos ===================== */
+/* Coordenadas 0..100 (x derecha, y abajo). Cada figura = lista de trazos; cada trazo = lista de [x,y]. */
+function circle(cx,cy,r,seg){seg=seg||16;var p=[];for(var i=0;i<=seg;i++){var a=-Math.PI/2+i/seg*Math.PI*2;p.push([cx+Math.cos(a)*r,cy+Math.sin(a)*r]);}return p;}
+function arc(cx,cy,r,a0,a1,seg){seg=seg||16;var p=[];for(var i=0;i<=seg;i++){var a=a0+(a1-a0)*i/seg;p.push([cx+Math.cos(a)*r,cy+Math.sin(a)*r]);}return p;}
+var R=Math.PI/180;
+
+function heartShape(){var p=[];for(var i=0;i<=40;i++){var t=Math.PI - i/40*2*Math.PI;var x=16*Math.pow(Math.sin(t),3);var y=13*Math.cos(t)-5*Math.cos(2*t)-2*Math.cos(3*t)-Math.cos(4*t);p.push([50+x*2.0,46-y*2.0]);}return [p];}
+function starShape(){var p=[],cx=50,cy=50,ro=30,ri=12.5;for(var i=0;i<=10;i++){var a=-Math.PI/2+i*Math.PI/5;var r=(i%2===0)?ro:ri;p.push([cx+Math.cos(a)*r,cy+Math.sin(a)*r]);}return [p];}
+
+var BANK={
+  sol:function(){var s=[circle(50,50,15)];for(var i=0;i<8;i++){var a=i*45*R;s.push([[50+Math.cos(a)*21,50+Math.sin(a)*21],[50+Math.cos(a)*30,50+Math.sin(a)*30]]);}return s;},
+  casa:function(){return [
+    [[26,55],[26,86],[74,86],[74,55]],            // cuerpo
+    [[20,56],[50,30],[80,56]],                    // tejado
+    [[44,86],[44,70],[56,70],[56,86]]             // puerta
+  ];},
+  corazon:heartShape,
+  estrella:starShape,
+  gato:function(){return [
+    circle(50,54,21),
+    [[34,38],[30,20],[44,33]],                    // oreja izq
+    [[66,38],[70,20],[56,33]],                    // oreja der
+    circle(43,52,1.6,8),circle(57,52,1.6,8),      // ojos
+    [[48,60],[50,62],[52,60]],                    // nariz/boca
+    [[20,56],[36,58]],[[20,62],[36,62]],          // bigotes izq
+    [[80,56],[64,58]],[[80,62],[64,62]]           // bigotes der
+  ];},
+  perro:function(){return [
+    circle(50,54,20),
+    [[33,40],[24,60],[35,64]],                    // oreja izq
+    [[67,40],[76,60],[65,64]],                    // oreja der
+    circle(43,52,1.6,8),circle(57,52,1.6,8),
+    [[47,60],[50,63],[53,60]],                    // nariz
+    [[50,63],[50,68]],arc(50,68,5,10*R,170*R,10)  // boca
+  ];},
+  flor:function(){var s=[];for(var i=0;i<6;i++){var a=i*60*R;s.push(circle(50+Math.cos(a)*13,42+Math.sin(a)*13,8,14));}s.push(circle(50,42,6));s.push([[50,50],[50,82]]);s.push([[50,66],[64,60]]);return s;},
+  arbol:function(){return [circle(50,38,22),[[44,58],[44,86]],[[56,58],[56,86]],[[44,86],[56,86]]];},
+  pez:function(){return [
+    [[30,50],[44,36],[66,38],[74,50],[66,62],[44,64],[30,50]], // cuerpo
+    [[74,50],[88,40],[88,60],[74,50]],            // cola
+    circle(40,47,1.7,8)                           // ojo
+  ];},
+  coche:function(){return [
+    [[20,66],[24,66],[30,52],[60,52],[68,66],[82,66]],
+    [[20,66],[20,74],[82,74],[82,66]],
+    circle(33,75,7,16),circle(69,75,7,16)
+  ];},
+  pelota:function(){return [circle(50,52,24),arc(50,52,24,200*R,340*R,12),[[26,52],[74,52]],[[36,30],[40,74]],[[64,30],[60,74]]];},
+  luna:function(){return [arc(54,50,26,40*R,320*R,22).concat(arc(44,50,21,300*R,60*R,16))];},
+  nube:function(){return [arc(34,58,12,90*R,270*R,10).concat(arc(44,50,13,180*R,360*R,10)).concat(arc(60,50,14,200*R,360*R,10)).concat(arc(70,58,11,270*R,90*R,8)).concat([[70,69],[34,69]])];},
+  barco:function(){return [
+    [[28,66],[72,66],[64,80],[36,80],[28,66]],    // casco
+    [[50,66],[50,30]],                            // mástil
+    [[50,32],[50,60],[72,58],[50,32]],            // vela
+    [[18,86],[30,86]],[[44,88],[56,88]],[[70,86],[82,86]]
+  ];},
+  taza:function(){return [
+    [[32,46],[36,78],[64,78],[68,46]],            // cuerpo
+    [[32,46],[68,46]],
+    arc(70,58,9,-70*R,70*R,10),                   // asa
+    [[44,30],[48,40]],[[56,28],[52,38]]           // vapor
+  ];},
+  manzana:function(){return [
+    arc(50,56,22,-30*R,210*R,18),
+    arc(50,56,22,150*R,30*R,18),
+    [[50,36],[52,24]],                            // tallo
+    [[52,28],[62,22],[60,32],[52,30]]             // hoja
+  ];},
+  platano:function(){return [arc(50,46,34,40*R,140*R,18).concat(arc(50,58,30,138*R,42*R,18))];},
+  globo:function(){return [circle(50,40,20),[[50,60],[48,64],[52,64],[50,60]],[[50,64],[54,84],[46,90]]];},
+  paraguas:function(){return [arc(50,46,28,180*R,360*R,18),[[22,46],[78,46]],[[50,46],[50,80]],arc(56,80,6,90*R,260*R,8),[[36,46],[44,30]],[[64,46],[56,30]]];},
+  llave:function(){return [circle(34,42,11),[[42,49],[72,79]],[[72,79],[78,73]],[[66,73],[72,67]]];},
+  reloj:function(){var s=[circle(50,50,26)];for(var i=0;i<12;i++){var a=i*30*R;s.push([[50+Math.cos(a)*23,50+Math.sin(a)*23],[50+Math.cos(a)*26,50+Math.sin(a)*26]]);}s.push([[50,50],[50,32]]);s.push([[50,50],[64,56]]);return s;},
+  gafas:function(){return [circle(34,52,13,18),circle(66,52,13,18),[[47,50],[53,50]],[[21,50],[14,44]],[[79,50],[86,44]]];},
+  sombrero:function(){return [[[24,64],[76,64]],arc(50,64,26,180*R,360*R,4),[[34,64],[36,40],[64,40],[66,64]],[[34,52],[66,52]]];},
+  regalo:function(){return [[[26,52],[26,84],[74,84],[74,52]],[[22,40],[78,40],[78,52],[22,52],[22,40]],[[50,40],[50,84]],arc(42,34,8,0,360*R,12),arc(58,34,8,0,360*R,12)];},
+  rayo:function(){return [[[54,24],[36,56],[50,56],[42,80],[68,46],[52,46],[60,24],[54,24]]];},
+  montana:function(){return [[[16,80],[40,40],[56,62],[68,46],[88,80],[16,80]],[[40,40],[33,52],[47,52]]];},
+  cara:function(){return [circle(50,50,28),circle(41,44,1.8,8),circle(59,44,1.8,8),arc(50,52,15,25*R,155*R,12)];},
+  sonrisa:function(){return BANK.cara();},
+  pajaro:function(){return [arc(38,46,12,-30*R,200*R,10),[[34,52],[24,70],[40,66]],arc(56,50,14,160*R,20*R,10),[[60,42],[72,40]],[[72,40],[64,46]],[[72,40],[66,36]],circle(40,44,1.4,8)];},
+  avion:function(){return [[[24,52],[72,48],[80,52],[72,56],[24,52]],[[40,50],[52,30],[58,30],[50,50]],[[40,54],[52,74],[58,74],[50,54]],[[70,49],[78,40],[80,50]]];},
+  serpiente:function(){var p=[];for(var i=0;i<=40;i++){var x=20+i*1.5;var y=50+Math.sin(i/3)*14;p.push([x,y]);}return [p,circle(80,50,1.6,8)];},
+  mariposa:function(){return [[[50,34],[50,70]],circle(40,42,11,16),circle(40,60,9,14),circle(60,42,11,16),circle(60,60,9,14),[[50,34],[44,26]],[[50,34],[56,26]]];},
+  caracol:function(){var p=[];for(var i=0;i<=60;i++){var a=i*0.32;var r=2+i*0.32;p.push([46+Math.cos(a)*r,46+Math.sin(a)*r]);}return [p,[[20,70],[60,70],[78,58]],[[78,58],[82,48]],[[78,58],[86,54]]];},
+  bicicleta:function(){return [circle(27,62,14),circle(73,62,14),[[44,42],[68,44]],[[44,42],[40,62]],[[68,44],[40,62]],[[40,62],[27,62]],[[68,44],[73,62]],[[68,44],[72,36],[79,38]],[[38,40],[50,40]]];},
+  guitarra:function(){return [circle(40,64,17),circle(52,52,11),[[58,46],[80,24]],[[80,24],[86,20],[82,16],[78,20]],circle(40,64,4)];},
+  helado:function(){return [[[40,54],[50,90],[60,54]],arc(50,48,15,180*R,360*R,12).concat([[65,48],[35,48]])];},
+  pizza:function(){return [[[50,28],[30,78]],[[50,28],[70,78]],[[30,78],[50,86],[70,78]],circle(45,55,3,8),circle(56,60,3,8),circle(50,45,3,8)];},
+  diamante:function(){return [[[35,40],[65,40],[80,52],[50,86],[20,52],[35,40]],[[35,40],[50,52],[65,40]],[[20,52],[80,52]],[[50,52],[50,86]]];},
+  cohete:function(){return [[[42,32],[42,68],[58,68],[58,32]],[[42,32],[50,14],[58,32]],[[42,58],[32,76],[42,68]],[[58,58],[68,76],[58,68]],circle(50,42,6),[[46,68],[50,84],[54,68]]];},
+  fantasma:function(){var top=arc(50,48,22,180*R,360*R,14);var body=top.concat([[72,48],[72,76]]).concat([[64,70],[56,76],[48,70],[40,76],[32,70],[28,76]]).concat([[28,48]]);return [body,circle(43,46,2.5,8),circle(57,46,2.5,8)];},
+  vela:function(){return [[[44,42],[44,80],[56,80],[56,42],[44,42]],[[50,42],[50,36]],[[50,36],[45,28],[50,18],[55,28],[50,36]],[[44,46],[56,46]]];},
+  bombilla:function(){return [circle(50,44,19),[[42,60],[42,72],[58,72],[58,60]],[[42,65],[58,65]],[[42,69],[58,69]],[[45,46],[48,54],[52,48],[55,55]]];},
+  corona:function(){return [[[26,64],[28,40],[38,52],[50,32],[62,52],[72,40],[74,64],[26,64]],circle(28,40,2.5,8),circle(50,32,2.5,8),circle(72,40,2.5,8)];},
+  camiseta:function(){return [[[40,30],[30,40],[38,48],[39,80],[61,80],[62,48],[70,40],[60,30],[55,35],[45,35],[40,30]]];},
+  copa:function(){return [[[36,30],[41,52],[50,58],[59,52],[64,30]],[[50,58],[50,78]],[[40,80],[60,80]]];},
+  ojo:function(){return [[[26,50],[50,37],[74,50],[50,63],[26,50]],circle(50,50,8),circle(50,50,2.5,8)];},
+  conejo:function(){return [circle(50,60,18),[[42,44],[37,16],[47,42]],[[58,44],[63,16],[53,42]],circle(44,58,2,8),circle(56,58,2,8),[[48,64],[50,67],[52,64]]];},
+  pato:function(){return [circle(44,60,18),circle(68,44,10),[[76,42],[90,45],[76,49]],circle(68,42,1.6,8),[[40,72],[58,74]]];},
+  abeja:function(){return [circle(50,56,16),[[42,49],[60,51]],[[40,57],[62,59]],circle(38,42,8),circle(62,42,8)];},
+  raqueta:function(){return [circle(50,40,18),[[50,58],[50,82]],[[40,30],[40,50]],[[50,26],[50,54]],[[60,30],[60,50]],[[34,36],[66,36]],[[34,44],[66,44]]];},
+  dado:function(){return [[[32,34],[68,34],[68,70],[32,70],[32,34]],circle(42,44,2,8),circle(58,44,2,8),circle(50,52,2,8),circle(42,60,2,8),circle(58,60,2,8)];}
+};
+
+/* sinónimos -> clave del banco (sin acentos) */
+var SYN={
+  hogar:'casa',sun:'sol',corazones:'corazon',love:'corazon',estrellas:'estrella',
+  gatito:'gato',gata:'gato',minino:'gato',perrito:'perro',perra:'perro',can:'perro',
+  flores:'flor',rosa:'flor',margarita:'flor',pescado:'pez',peces:'pez',
+  carro:'coche',auto:'coche',automovil:'coche',vehiculo:'coche',
+  balon:'pelota',bola:'pelota',pelotas:'pelota',
+  nubes:'nube',barca:'barco',bote:'barco',velero:'barco',
+  cafe:'taza',te:'taza',tasa:'taza',copa:'taza',
+  banana:'platano',bananas:'platano',
+  sombrilla:'paraguas',lentes:'gafas',anteojos:'gafas',
+  relojes:'reloj',presente:'regalo',regalos:'regalo',caja:'regalo',
+  relampago:'rayo',trueno:'rayo',montanas:'montana',monte:'montana',
+  carita:'cara',emoji:'cara',smiley:'cara',sonriente:'cara',feliz:'cara',
+  ave:'pajaro',pajarito:'pajaro',pajaros:'pajaro',gaviota:'pajaro',
+  avioncito:'avion',aeroplano:'avion',culebra:'serpiente',vibora:'serpiente',
+  arboles:'arbol',pino:'arbol',manzanas:'manzana',luna:'luna',globos:'globo',
+  bici:'bicicleta',bicis:'bicicleta',guitarras:'guitarra',
+  helados:'helado',cucurucho:'helado',polo:'helado',pizzas:'pizza',porcion:'pizza',
+  diamantes:'diamante',joya:'diamante',brillante:'diamante',cohetes:'cohete',nave:'cohete',
+  fantasmas:'fantasma',velas:'vela',bombillas:'bombilla',lampara:'bombilla',bombilla:'bombilla',
+  coronas:'corona',camisetas:'camiseta',camisa:'camiseta',remera:'camiseta',playera:'camiseta',
+  copas:'copa',ojos:'ojo',conejos:'conejo',conejito:'conejo',patos:'pato',patito:'pato',
+  abejas:'abeja',abejita:'abeja',raquetas:'raqueta',dados:'dado'
+};
+function lookup(key){ if(BANK[key]) return BANK[key]; if(SYN[key]&&BANK[SYN[key]]) return BANK[SYN[key]]; return null; }
+
+/* ===================== Extracción del objeto ===================== */
+var ARTICLES=['un','una','unos','unas','el','la','los','las'];
+var STOP=['veo','vi','es','un','una','unos','unas','el','la','los','las','que','de','del',
+ 'dibuja','pinta','seguro','segura','vale','verdad','cierto','parece','bien','te','me','se',
+ 'creo','pienso','mmm','eh','ehh','o','y','con','sin','este','esta','esto','algo','cosa','ya',
+ 'voy','a','adivinar','tu','tu','dibujo','has','dibujado','quizas','tal','vez','sera','aqui','hay'];
+function clean(w){return w.toLowerCase().replace(/[¿?¡!.,;:"'()]/g,'')
+ .replace(/[áàä]/g,'a').replace(/[éèë]/g,'e').replace(/[íìï]/g,'i').replace(/[óòö]/g,'o').replace(/[úùü]/g,'u');}
+function extractObject(phrase){
+  if(!phrase) return null;
+  var raw=phrase.trim().split(/\s+/);
+  var W=raw.map(function(w){return {orig:w.replace(/[¿?¡!.,;:"'()]/g,''),c:clean(w)};});
+  for(var i=0;i<W.length;i++){ if(ARTICLES.indexOf(W[i].c)!==-1){
+    for(var j=i+1;j<W.length;j++){ if(W[j].c&&STOP.indexOf(W[j].c)===-1&&W[j].c.length>1) return W[j].c; } } }
+  for(var k=0;k<W.length;k++){ if(W[k].c&&STOP.indexOf(W[k].c)===-1&&W[k].c.length>2) return W[k].c; }
+  return null;
+}
+/* primera palabra de la frase que EXISTE en el banco (objeto/animal/cosa) */
+function pickObject(text){
+  if(!text)return null;
+  var ws=text.toLowerCase().split(/\s+/).map(clean);
+  for(var i=0;i<ws.length;i++){ if(ws[i]&&lookup(ws[i])) return ws[i]; }
+  return extractObject(text);   // fallback (probablemente "no encontrado")
+}
+window.__extractObject=extractObject;
+
+/* ===================== Lienzo + pincel Instagram ===================== */
+var cv=document.getElementById('art'),ctx=cv.getContext('2d');
+var CW=0,CH=0,DPR=1,anim=null;
+function resize(){var r=cv.getBoundingClientRect();DPR=Math.min(window.devicePixelRatio||1,3);
+  cv.width=Math.round(r.width*DPR);cv.height=Math.round(r.height*DPR);
+  ctx.setTransform(DPR,0,0,DPR,0,0);CW=r.width;CH=r.height;}
+window.addEventListener('resize',resize);
+
+function clearCanvas(){if(anim){cancelAnimationFrame(anim);anim=null;}ctx.clearRect(0,0,CW,CH);}
+
+function brushWidth(){return Math.max(8,Math.min(CW,CH)*0.030);}
+
+/* Catmull-Rom: trazo SUAVE que pasa por los puntos de control */
+function cr(p0,p1,p2,p3,t){var t2=t*t,t3=t2*t;return [
+  0.5*((2*p1[0])+(-p0[0]+p2[0])*t+(2*p0[0]-5*p1[0]+4*p2[0]-p3[0])*t2+(-p0[0]+3*p1[0]-3*p2[0]+p3[0])*t3),
+  0.5*((2*p1[1])+(-p0[1]+p2[1])*t+(2*p0[1]-5*p1[1]+4*p2[1]-p3[1])*t2+(-p0[1]+3*p1[1]-3*p2[1]+p3[1])*t3)];}
+function smooth(pts){
+  if(pts.length<2)return pts.slice();
+  var out=[];
+  for(var i=0;i<pts.length-1;i++){
+    var p0=pts[i-1]||pts[i],p1=pts[i],p2=pts[i+1],p3=pts[i+2]||pts[i+1];
+    var seg=Math.hypot(p2[0]-p1[0],p2[1]-p1[1]);var n=Math.max(2,Math.round(seg/2.2));
+    for(var t=0;t<n;t++)out.push(cr(p0,p1,p2,p3,t/n));
+  }
+  out.push(pts[pts.length-1]);return out;
+}
+
+/* prep: imperfección de FORMA (no temblor) + trazo suave de pincel */
+function prep(stroke){
+  // 1) jitter ligero de los vértices base -> forma algo imperfecta
+  var j=stroke.map(function(p){return [p[0]+(Math.random()-.5)*1.6,p[1]+(Math.random()-.5)*1.6];});
+  // 2) líneas rectas: un solo arqueo muy suave (el dedo no va perfectamente recto)
+  if(j.length===2){
+    var a=j[0],b=j[1],mx=(a[0]+b[0])/2,my=(a[1]+b[1])/2,dx=b[0]-a[0],dy=b[1]-a[1],l=Math.hypot(dx,dy)||1;
+    var bow=(Math.random()-.5)*Math.min(2.6,l*0.05);
+    j=[a,[mx-dy/l*bow,my+dx/l*bow],b];
+  }
+  // 3) suaviza con spline -> trazo limpio y confiado
+  var out=smooth(j);
+  // 4) leve sobre-trazo final (remate que se pasa un pelín)
+  if(out.length>3 && Math.random()<0.55){
+    var q=out[out.length-1],r=out[out.length-3];
+    var ex=q[0]-r[0],ey=q[1]-r[1],el=Math.hypot(ex,ey)||1,g=1.1+Math.random()*1.5;
+    out.push([q[0]+ex/el*g,q[1]+ey/el*g]);
+  }
+  return out;
+}
+
+function fitAndDraw(strokes){
+  resize();          // asegura tamaño correcto del lienzo antes de dibujar
+  clearCanvas();userStrokes=[];   // borra el garabato del usuario antes del reveal
+  // bounding box
+  var minx=1e9,miny=1e9,maxx=-1e9,maxy=-1e9;
+  strokes.forEach(function(s){s.forEach(function(p){if(p[0]<minx)minx=p[0];if(p[0]>maxx)maxx=p[0];if(p[1]<miny)miny=p[1];if(p[1]>maxy)maxy=p[1];});});
+  var bw=maxx-minx||1,bh=maxy-miny||1;
+  var target=Math.min(CW,CH)*(0.55+Math.random()*0.07);
+  var scale=target/Math.max(bw,bh);
+  var cx=CW/2, cy=CH*0.50;
+  var ox=cx-(minx+bw/2)*scale, oy=cy-(miny+bh/2)*scale;
+  // inclinación casual de toda la figura (±3.5°)
+  var ang=(Math.random()-0.5)*0.12, ca=Math.cos(ang), sa=Math.sin(ang);
+  function place(p){var X=ox+p[0]*scale, Y=oy+p[1]*scale, dx=X-cx, dy=Y-cy;
+    return [cx+dx*ca-dy*sa, cy+dx*sa+dy*ca];}
+  // preparar y mapear a píxeles
+  var dens=strokes.map(function(s){return prep(s).map(place);});
+  var total=0;dens.forEach(function(s){total+=s.length;});
+  var dur=Math.max(750,Math.min(1900,dens.length*230+total*1.1));
+  var t0=null;
+  ctx.lineCap='round';ctx.lineJoin='round';ctx.strokeStyle='#ffffff';ctx.lineWidth=brushWidth();
+  function drawFull(){ctx.clearRect(0,0,CW,CH);dens.forEach(function(s){if(s.length<2)return;ctx.beginPath();ctx.moveTo(s[0][0],s[0][1]);for(var i=1;i<s.length;i++)ctx.lineTo(s[i][0],s[i][1]);ctx.stroke();});}
+  if(document.hidden){drawFull();return;}   // si la pestaña no es visible, dibuja al instante
+  function frame(ts){
+    if(t0===null)t0=ts;var p=Math.min(1,(ts-t0)/dur);
+    var show=Math.floor(p*total);
+    ctx.clearRect(0,0,CW,CH);
+    var rem=show;
+    for(var si=0;si<dens.length;si++){
+      var s=dens[si];if(rem<=0)break;
+      var n=Math.min(s.length,rem);rem-=n;
+      if(n<2)continue;
+      ctx.beginPath();ctx.moveTo(s[0][0],s[0][1]);
+      for(var i=1;i<n;i++)ctx.lineTo(s[i][0],s[i][1]);
+      ctx.stroke();
+    }
+    if(p<1)anim=requestAnimationFrame(frame);else anim=null;
+  }
+  anim=requestAnimationFrame(frame);
+}
+
+/* palabra no encontrada: NO dibuja nada realista; parpadea el punto secreto para avisar */
+function notFound(){
+  var n=0,iv=setInterval(function(){dot0.classList.toggle('armed');if(++n>=6){clearInterval(iv);dot0.classList.remove('armed');}},130);
+}
+
+function drawObject(object){
+  if(!object){setCue('off');return;}
+  var fig=lookup(object);
+  if(fig){ setCue('off'); fitAndDraw(fig()); }   // SIEMPRE garabato hecho a mano (nunca IA realista)
+  else { setCue('off'); notFound(); }            // no está en el banco -> avisa, no inventa
+}
+
+/* ===================== Indicador secreto (primer punto) ===================== */
+var dot0=document.querySelector('#dots .d');
+function setCue(state){
+  dot0.classList.remove('armed');
+  if(state==='listening'||state==='armed'||state==='working')dot0.classList.add('armed');
+}
+
+/* ============ Voz: motor propio Vosk (NO usa el dictado de Apple => SIN tono) ============ */
+var VOSK_JS='https://cdn.jsdelivr.net/npm/vosk-browser@0.0.8/dist/vosk.js';
+var MODEL_URL='https://ccoreilly.github.io/vosk-browser/models/vosk-model-small-es-0.3.tar.gz';
+var armed=false,listenTimer=null;
+var voskModel=null,voskRec=null,voskReady=false,voskLoading=false;
+var micStream=null,micCtx=null,micNode=null,micSrc=null,listening=false;
+
+function toast(msg,ms){
+  var t=document.getElementById('toast');if(!t)return;
+  t.textContent=msg;t.style.opacity='1';
+  clearTimeout(t._h);if(ms)t._h=setTimeout(function(){t.style.opacity='0';},ms);
+}
+function loadVoskScript(){return new Promise(function(res,rej){
+  if(window.Vosk)return res();
+  var s=document.createElement('script');s.src=VOSK_JS;
+  s.onload=function(){res();};s.onerror=function(){rej(new Error('script'));};
+  document.head.appendChild(s);
+});}
+function initVosk(){
+  if(voskReady||voskLoading)return;
+  voskLoading=true;toast('Preparando la voz… (la primera vez tarda unos segundos)',0);
+  loadVoskScript()
+    .then(function(){return window.Vosk.createModel(MODEL_URL);})
+    .then(function(m){voskModel=m;voskReady=true;voskLoading=false;toast('🎤 Voz lista',1500);})
+    .catch(function(){voskLoading=false;toast('No se pudo cargar la voz. Usa el modo manual: triple toque en "Deshacer".',4500);});
+}
+function onVoskResult(message){
+  if(!armed)return;
+  var text=message&&message.result&&message.result.text;
+  if(!text)return;
+  var obj=pickObject(text);
+  if(obj&&lookup(obj)){armed=false;clearTimeout(listenTimer);setCue('off');stopMic();drawObject(obj);}
+  // si no es un objeto del banco, sigue escuchando hasta el tiempo límite
+}
+function startMic(){
+  if(listening)return Promise.resolve(true);
+  if(!voskReady)return Promise.resolve(false);
+  return navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,channelCount:1}})
+  .then(function(stream){
+    micStream=stream;
+    if(!micCtx)micCtx=new (window.AudioContext||window.webkitAudioContext)();
+    return (micCtx.state==='suspended'?micCtx.resume():Promise.resolve()).then(function(){
+      voskRec=new voskModel.KaldiRecognizer(micCtx.sampleRate);
+      voskRec.on('result',onVoskResult);
+      micSrc=micCtx.createMediaStreamSource(micStream);
+      micNode=micCtx.createScriptProcessor(4096,1,1);
+      micNode.onaudioprocess=function(e){ if(listening){try{voskRec.acceptWaveform(e.inputBuffer);}catch(_){}} };
+      micSrc.connect(micNode);micNode.connect(micCtx.destination);
+      listening=true;return true;
+    });
+  }).catch(function(){return false;});
+}
+function stopMic(){
+  listening=false;
+  try{if(micNode){micNode.onaudioprocess=null;micNode.disconnect();micNode=null;}}catch(_){}
+  try{if(micSrc){micSrc.disconnect();micSrc=null;}}catch(_){}
+  if(micStream){micStream.getTracks().forEach(function(t){t.stop();});micStream=null;}  // apaga el indicador de micro
+  if(voskRec){try{voskRec.remove();}catch(_){}voskRec=null;}
+}
+/* al empezar: permiso de micro (silencioso) + carga del motor de voz en segundo plano */
+function warmup(){
+  if(navigator.mediaDevices&&navigator.mediaDevices.getUserMedia){
+    navigator.mediaDevices.getUserMedia({audio:true}).then(function(s){s.getTracks().forEach(function(t){t.stop();});}).catch(function(){});
+  }
+  initVosk();
+}
+function arm(){
+  if(armed)return;
+  if(!voskReady){
+    if(voskLoading)toast('Cargando la voz… espera un momentito',2500);
+    else{toast('Voz no disponible. Modo manual: triple toque en "Deshacer".',3500);initVosk();}
+    return;
+  }
+  armed=true;clearCanvas();userStrokes=[];setCue('listening');
+  startMic().then(function(ok){ if(!ok){armed=false;setCue('off');toast('No pude abrir el micrófono.',2500);} });
+  clearTimeout(listenTimer);
+  listenTimer=setTimeout(function(){ if(armed){armed=false;setCue('off');stopMic();} },9000);
+}
+
+/* ===== Dibujo libre real (pincel blanco estilo Instagram) ===== */
+var userStrokes=[],drawing=false,cur=null;
+function helpReady(){return document.getElementById('help').classList.contains('hidden')&&document.getElementById('manual').classList.contains('hidden');}
+function brushStyle(){ctx.lineCap='round';ctx.lineJoin='round';ctx.strokeStyle='#fff';ctx.lineWidth=brushWidth();}
+function dot(p){ctx.beginPath();ctx.arc(p[0],p[1],brushWidth()/2,0,7);ctx.fillStyle='#fff';ctx.fill();}
+function redrawUser(){
+  if(anim){cancelAnimationFrame(anim);anim=null;}
+  ctx.clearRect(0,0,CW,CH);brushStyle();
+  userStrokes.forEach(function(s){
+    if(s.length===1){dot(s[0]);return;}
+    ctx.beginPath();ctx.moveTo(s[0][0],s[0][1]);
+    for(var i=1;i<s.length;i++)ctx.lineTo(s[i][0],s[i][1]);
+    ctx.stroke();
+  });
+}
+function cpos(e){var r=cv.getBoundingClientRect();
+  var x=(e.clientX!=null?e.clientX:e.touches[0].clientX)-r.left;
+  var y=(e.clientY!=null?e.clientY:e.touches[0].clientY)-r.top;return [x,y];}
+cv.addEventListener('pointerdown',function(e){
+  if(!helpReady())return;
+  drawing=true;var p=cpos(e);cur=[p];userStrokes.push(cur);
+  brushStyle();dot(p);
+  try{cv.setPointerCapture(e.pointerId);}catch(_){}
+  e.preventDefault();
+},{passive:false});
+cv.addEventListener('pointermove',function(e){
+  if(!drawing)return;var p=cpos(e),prev=cur[cur.length-1];cur.push(p);
+  brushStyle();ctx.beginPath();ctx.moveTo(prev[0],prev[1]);ctx.lineTo(p[0],p[1]);ctx.stroke();
+  e.preventDefault();
+},{passive:false});
+function endDraw(){drawing=false;cur=null;}
+cv.addEventListener('pointerup',endDraw);
+cv.addEventListener('pointercancel',endDraw);
+
+/* ===== Gatillo secreto: tocar el cuentagotas (abajo-izquierda) ===== */
+document.querySelector('.eyedrop').addEventListener('click',function(){ if(helpReady()) arm(); });
+
+/* ===================== Modo manual ===================== */
+var manual=document.getElementById('manual'),mi=document.getElementById('manualInput');
+function toggleManual(force){var show=force!==undefined?force:manual.classList.contains('hidden');
+  manual.classList.toggle('hidden',!show);if(show)mi.focus();}
+document.getElementById('manualGo').addEventListener('click',function(){
+  var obj=pickObject(mi.value);mi.value='';toggleManual(false);drawObject(obj);});
+mi.addEventListener('keydown',function(e){if(e.key==='Enter')document.getElementById('manualGo').click();});
+var taps=0,tt=null;
+document.getElementById('undoBtn').addEventListener('click',function(){
+  userStrokes.pop(); redrawUser();           // INSTANTÁNEO, como Instagram
+  taps++;clearTimeout(tt);
+  tt=setTimeout(function(){taps=0;},500);
+  if(taps>=3){taps=0;toggleManual();}        // triple toque = modo manual
+});
+
+/* ===================== Ayuda ===================== */
+document.getElementById('helpClose').addEventListener('click',function(){
+  document.getElementById('help').classList.add('hidden');
+  resize();
+  warmup();          // pide el permiso de micro ahora, al inicio (una sola vez)
+});
+
+window.__drawObject=drawObject;   // para pruebas
+
+/* Aviso: en iPhone abierto como app (standalone), la voz no funciona (límite de Apple) */
+(function(){
+  var isIOS=/iP(hone|ad|od)/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
+  var standalone=(navigator.standalone===true)||(window.matchMedia&&window.matchMedia('(display-mode: standalone)').matches);
+  if(isIOS&&standalone){var w=document.getElementById('iosWarn');if(w)w.style.display='block';}
+})();
+
+resize();
+})();
+</script>
+</body>
+</html>
