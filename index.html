@@ -45,15 +45,13 @@
   #dots .d.on{background:#cfcfcf;}      /* primer punto = indicador secreto */
   #dots .d.armed{background:#8a8a8a;}
 
-  /* ---- Ayuda ---- */
-  #help{position:fixed;inset:0;background:rgba(0,0,0,.94);color:#eee;z-index:50;
-    display:flex;flex-direction:column;justify-content:center;gap:16px;padding:32px;
-    font-size:16px;line-height:1.5;}
-  #help h1{font-size:21px;}
-  #help b{color:#fff;}
-  #help .small{font-size:13px;color:#9a9a9a;}
-  #help button{margin-top:8px;padding:15px;border:none;border-radius:13px;background:#fff;color:#000;font-size:17px;font-weight:700;}
   .hidden{display:none!important;}
+
+  /* ---- Engranaje discreto (solo para el mago: ajustes / tutorial) ---- */
+  #gear{position:fixed;right:9px;bottom:calc(6px + env(safe-area-inset-bottom));
+    width:22px;height:22px;z-index:48;opacity:.18;color:#fff;
+    display:flex;align-items:center;justify-content:center;}
+  #gear svg{display:block;}
 
   /* Aviso flotante (carga de voz, errores) */
   #toast{position:fixed;left:50%;transform:translateX(-50%);
@@ -67,6 +65,65 @@
     display:flex;gap:8px;background:#161616;padding:8px;border-radius:11px;box-shadow:0 6px 24px rgba(0,0,0,.5);}
   #manual input{width:175px;padding:9px;border-radius:8px;border:1px solid #333;background:#000;color:#fff;font-size:15px;}
   #manual button{padding:9px 13px;border-radius:8px;border:none;background:#fff;font-weight:700;}
+
+  /* ============ Overlays premium (candado / onboarding / ajustes) ============ */
+  .ov{position:fixed;inset:0;z-index:60;display:flex;align-items:center;justify-content:center;
+    padding:26px;padding-top:max(26px,env(safe-area-inset-top));
+    padding-bottom:max(26px,calc(env(safe-area-inset-bottom) + 12px));
+    background:radial-gradient(130% 110% at 50% -10%,#241a44 0%,#120f22 46%,#0a0a0a 100%);
+    color:#fff;overflow-y:auto;}
+  .card{width:100%;max-width:430px;margin:auto;display:flex;flex-direction:column;gap:16px;}
+  .logo{width:74px;height:74px;border-radius:21px;margin:0 auto 2px;
+    background:linear-gradient(135deg,#a24bff,#ff2d8f 55%,#ffae3a);
+    display:flex;align-items:center;justify-content:center;font-size:38px;
+    box-shadow:0 12px 40px rgba(162,75,255,.35);}
+  .brand{text-align:center;font-size:27px;font-weight:800;letter-spacing:.4px;}
+  .brand .sub{display:block;font-size:13px;font-weight:600;letter-spacing:3px;
+    text-transform:uppercase;color:#b9a9e6;margin-top:6px;}
+  .lead{text-align:center;font-size:15px;line-height:1.5;color:#d9d2ee;}
+  .field label{display:block;font-size:12.5px;color:#b9a9e6;margin:0 0 7px 2px;
+    text-transform:uppercase;letter-spacing:1.5px;font-weight:700;}
+  #codeInput{width:100%;padding:16px;border-radius:14px;border:1.5px solid #3a2f5e;
+    background:rgba(255,255,255,.04);color:#fff;font-size:21px;font-weight:700;
+    text-align:center;letter-spacing:4px;text-transform:uppercase;}
+  #codeInput::placeholder{color:#6a608a;letter-spacing:2px;font-weight:600;}
+  #codeInput:focus{outline:none;border-color:#a24bff;background:rgba(162,75,255,.08);}
+  .btn{padding:16px;border:none;border-radius:14px;font-size:17px;font-weight:800;
+    background:linear-gradient(135deg,#a24bff,#ff2d8f);color:#fff;letter-spacing:.3px;
+    box-shadow:0 10px 30px rgba(162,75,255,.3);}
+  .btn.ghost{background:rgba(255,255,255,.07);box-shadow:none;color:#e7e1f7;font-weight:700;}
+  .btn:active{transform:translateY(1px);}
+  .err{min-height:18px;text-align:center;font-size:13.5px;color:#ff7a9c;font-weight:600;}
+  .note{text-align:center;font-size:12.5px;color:#8d83ad;line-height:1.5;}
+  .note a{color:#c3b3f0;}
+
+  /* onboarding pasos */
+  .ob-step h2{font-size:22px;font-weight:800;text-align:center;}
+  .ob-step p{font-size:15px;line-height:1.55;color:#d9d2ee;text-align:center;}
+  .ob-step .small{font-size:13px;color:#9a90ba;line-height:1.5;text-align:center;}
+  .ok-tag{display:inline-block;margin:0 auto;padding:6px 13px;border-radius:999px;
+    background:rgba(33,208,99,.16);color:#62e89a;font-size:13px;font-weight:700;}
+  .aa-guide{background:rgba(255,255,255,.05);border:1px solid #322a52;border-radius:15px;
+    padding:14px 16px;display:flex;flex-direction:column;gap:11px;}
+  .aa-row{display:flex;align-items:center;gap:11px;font-size:14px;color:#e2dcf2;line-height:1.35;}
+  .aa-chip{flex:0 0 auto;min-width:40px;height:30px;padding:0 9px;border-radius:9px;
+    background:#2b2447;border:1px solid #463a72;display:flex;align-items:center;justify-content:center;
+    font-weight:800;font-size:14px;color:#fff;}
+  .aa-chip.sm{font-size:12px;font-weight:700;}
+  .aa-row b{color:#62e89a;}
+  .tut{display:flex;flex-direction:column;gap:13px;}
+  .tut-row{display:flex;gap:13px;align-items:flex-start;}
+  .tut-num{flex:0 0 auto;width:28px;height:28px;border-radius:50%;
+    background:linear-gradient(135deg,#a24bff,#ff2d8f);display:flex;align-items:center;
+    justify-content:center;font-weight:800;font-size:14px;}
+  .tut-row div.t{font-size:14.5px;line-height:1.45;color:#e2dcf2;}
+  .tut-row .t b{color:#fff;}
+  .ob-dots{display:flex;justify-content:center;gap:8px;margin-top:2px;}
+  .ob-dots i{width:8px;height:8px;border-radius:50%;background:#3a3158;transition:.25s;}
+  .ob-dots i.on{background:#a24bff;width:22px;border-radius:4px;}
+  .ios-warn{color:#ffc46b;font-size:13px;line-height:1.5;text-align:center;
+    background:rgba(255,170,60,.1);border-radius:12px;padding:11px 13px;}
+  .set-row{display:flex;flex-direction:column;gap:10px;}
 </style>
 </head>
 <body>
@@ -104,6 +161,9 @@
   <div id="dots"><div class="d on"></div><div class="d"></div><div class="d"></div></div>
 </div>
 
+<!-- engranaje discreto: solo el mago lo conoce, abre ajustes/tutorial -->
+<div id="gear"><svg width="20" height="20" viewBox="0 0 24 24"><path fill="currentColor" d="M19.14 12.94a7.49 7.49 0 0 0 .05-.94 7.49 7.49 0 0 0-.05-.94l2.03-1.58a.5.5 0 0 0 .12-.64l-1.92-3.32a.5.5 0 0 0-.6-.22l-2.39.96a7 7 0 0 0-1.62-.94l-.36-2.54a.5.5 0 0 0-.5-.42h-3.84a.5.5 0 0 0-.5.42l-.36 2.54c-.59.24-1.13.55-1.62.94l-2.39-.96a.5.5 0 0 0-.6.22L2.66 8.8a.5.5 0 0 0 .12.64l2.03 1.58c-.03.31-.05.62-.05.94s.02.63.05.94l-2.03 1.58a.5.5 0 0 0-.12.64l1.92 3.32a.5.5 0 0 0 .6.22l2.39-.96c.49.39 1.03.7 1.62.94l.36 2.54a.5.5 0 0 0 .5.42h3.84a.5.5 0 0 0 .5-.42l.36-2.54c.59-.24 1.13-.55 1.62-.94l2.39.96a.5.5 0 0 0 .6-.22l1.92-3.32a.5.5 0 0 0-.12-.64ZM12 15.5A3.5 3.5 0 1 1 15.5 12 3.5 3.5 0 0 1 12 15.5Z"/></svg></div>
+
 <div id="toast"></div>
 
 <div id="manual" class="hidden">
@@ -111,15 +171,77 @@
   <button id="manualGo">Ir</button>
 </div>
 
-<div id="help">
-  <h1>🎩 Réplica de Instagram Stories</h1>
-  <div>Es la pantalla de dibujo de Instagram: <b>puedes dibujar de verdad</b> con el dedo en blanco para que el espectador se lo crea.</div>
-  <div>El truco: al dejar el móvil, <b>toca el cuentagotas</b> (abajo-izquierda) para activar la escucha en secreto. Luego di lo que "ves": <b>"veo una casa"</b>. Se borra tu garabato y dibuja <b>solo ese objeto</b> con el pincel de Instagram.</div>
-  <div class="small">Aviso secreto: el primer puntito de abajo se ilumina al escuchar. El espectador no lo nota. "Deshacer" borra tu último trazo; triple toque = modo manual para practicar.</div>
-  <div class="small">Solo objetos del repertorio (siempre garabato). 🔇 <b>Sin ningún tono</b> al escuchar: usa su propio motor de voz (no el dictado de Apple).</div>
-  <div class="small">🎤 La <b>primera vez</b> descarga el motor de voz (unos segundos, necesita internet solo esa vez). Después va sin conexión.</div>
-  <div class="small" id="iosWarn" style="display:none;color:#ffb84d;">⚠️ Abierta como "app" (pantalla de inicio), en iPhone el micro puede fallar. Si no te escucha, ábrela en <b>Safari</b>.</div>
-  <button id="helpClose">Entendido, empezar</button>
+<!-- ===================== CANDADO DE LICENCIA ===================== -->
+<div id="lock" class="ov hidden">
+  <div class="card">
+    <div class="logo">🎩</div>
+    <div class="brand">Lienzo<span class="sub">Edición Mago</span></div>
+    <div class="lead">Introduce tu código de activación. Se desbloquea <b>para siempre</b> en este móvil.</div>
+    <div class="field">
+      <label>Código de activación</label>
+      <input id="codeInput" placeholder="XXXX-XXXX" autocomplete="off" autocapitalize="characters" autocorrect="off" spellcheck="false" inputmode="text" maxlength="11">
+    </div>
+    <div class="err" id="lockErr"></div>
+    <button class="btn" id="activateBtn">Activar</button>
+    <div class="note">¿Aún no tienes código? Escribe al vendedor para conseguir el tuyo.</div>
+  </div>
+</div>
+
+<!-- ===================== ONBOARDING GUIADO ===================== -->
+<div id="onboard" class="ov hidden">
+  <div class="card">
+
+    <div class="ob-step" data-step="1">
+      <div class="logo">🎩</div>
+      <div class="brand">Bienvenido<span class="sub">Tu mejor truco</span></div>
+      <p>Esta es tu réplica de la pantalla de dibujo de Instagram Stories. El espectador cree que es Instagram de verdad… y tú adivinas y <b>dibujas lo que él imagina</b>.</p>
+      <p class="small">Te guiamos en 30 segundos. Esto solo aparece la primera vez.</p>
+      <button class="btn" data-next>Empezar</button>
+    </div>
+
+    <div class="ob-step hidden" data-step="2">
+      <h2>🎤 Activa la voz</h2>
+      <p>La app escucha con su <b>propio motor de voz</b>, sin ningún tono ni aviso visible. Toca el botón y acepta el micrófono.</p>
+      <button class="btn" id="micBtn">Activar voz</button>
+      <div style="text-align:center"><span class="ok-tag hidden" id="micOk">✓ Voz activada</span></div>
+      <p class="small">Para que iPhone <b>no</b> vuelva a pedir permiso cada vez, déjalo fijado en “Permitir”:</p>
+      <div class="aa-guide">
+        <div class="aa-row"><span class="aa-chip">aA</span> Toca <b style="color:#fff">aA</b> arriba a la izquierda en Safari</div>
+        <div class="aa-row"><span class="aa-chip sm">Ajustes</span> Pulsa “Ajustes del sitio web”</div>
+        <div class="aa-row"><span class="aa-chip sm">🎤</span> Micrófono → <b>Permitir</b></div>
+      </div>
+      <div class="ios-warn hidden" id="iosWarn">⚠️ Si la abriste como “app” desde la pantalla de inicio, en iPhone el micro puede fallar. Úsala mejor dentro de <b>Safari</b>.</div>
+      <button class="btn ghost" data-next>Siguiente</button>
+    </div>
+
+    <div class="ob-step hidden" data-step="3">
+      <h2>✨ El truco</h2>
+      <div class="tut">
+        <div class="tut-row"><div class="tut-num">1</div><div class="t">Finge que dibujas con el dedo (el pincel blanco es real, vende la ilusión).</div></div>
+        <div class="tut-row"><div class="tut-num">2</div><div class="t">Al dejar el móvil, <b>toca el cuentagotas</b> (abajo a la izquierda): activa la escucha en secreto. El primer puntito de abajo se ilumina solo para ti.</div></div>
+        <div class="tut-row"><div class="tut-num">3</div><div class="t">Di <b>“veo una casa”</b> y la app borra todo y dibuja <b>solo la casa</b> trazo a trazo.</div></div>
+        <div class="tut-row"><div class="tut-num">4</div><div class="t">“Deshacer” borra el último trazo. <b>Triple toque en Deshacer</b> = modo manual para practicar sin voz.</div></div>
+      </div>
+      <p class="small">¿Necesitas volver aquí? Toca el <b>engranaje discreto</b> de la esquina inferior derecha.</p>
+      <button class="btn" id="onbDone">¡Entendido, a actuar!</button>
+    </div>
+
+    <div class="ob-dots"><i class="on"></i><i></i><i></i></div>
+  </div>
+</div>
+
+<!-- ===================== AJUSTES (engranaje) ===================== -->
+<div id="settings" class="ov hidden">
+  <div class="card">
+    <div class="brand" style="font-size:22px">Ajustes</div>
+    <div class="set-row">
+      <button class="btn ghost" id="setTutorial">Ver el tutorial otra vez</button>
+      <button class="btn ghost" id="setMic">Reactivar / probar el micrófono</button>
+      <button class="btn" id="setClose">Volver al dibujo</button>
+    </div>
+    <div class="note" id="setInfo"></div>
+    <div class="note"><a href="#" id="setReset">Desactivar licencia en este móvil</a></div>
+  </div>
 </div>
 
 <script>
@@ -415,7 +537,8 @@ function initVosk(){
   voskLoading=true;toast('Preparando la voz… (la primera vez tarda unos segundos)',0);
   loadVoskScript()
     .then(function(){return window.Vosk.createModel(MODEL_URL);})
-    .then(function(m){voskModel=m;voskReady=true;voskLoading=false;toast('🎤 Voz lista',1500);})
+    .then(function(m){voskModel=m;voskReady=true;voskLoading=false;toast('🎤 Voz lista',1500);
+      var ok=document.getElementById('micOk');if(ok)ok.classList.remove('hidden');})
     .catch(function(){voskLoading=false;toast('No se pudo cargar la voz. Usa el modo manual: triple toque en "Deshacer".',4500);});
 }
 function onVoskResult(message){
@@ -473,7 +596,12 @@ function arm(){
 
 /* ===== Dibujo libre real (pincel blanco estilo Instagram) ===== */
 var userStrokes=[],drawing=false,cur=null;
-function helpReady(){return document.getElementById('help').classList.contains('hidden')&&document.getElementById('manual').classList.contains('hidden');}
+function overlaysOpen(){
+  return !document.getElementById('lock').classList.contains('hidden')
+      || !document.getElementById('onboard').classList.contains('hidden')
+      || !document.getElementById('settings').classList.contains('hidden');
+}
+function helpReady(){return !overlaysOpen() && document.getElementById('manual').classList.contains('hidden');}
 function brushStyle(){ctx.lineCap='round';ctx.lineJoin='round';ctx.strokeStyle='#fff';ctx.lineWidth=brushWidth();}
 function dot(p){ctx.beginPath();ctx.arc(p[0],p[1],brushWidth()/2,0,7);ctx.fillStyle='#fff';ctx.fill();}
 function redrawUser(){
@@ -523,23 +651,137 @@ document.getElementById('undoBtn').addEventListener('click',function(){
   if(taps>=3){taps=0;toggleManual();}        // triple toque = modo manual
 });
 
-/* ===================== Ayuda ===================== */
-document.getElementById('helpClose').addEventListener('click',function(){
-  document.getElementById('help').classList.add('hidden');
-  resize();
-  warmup();          // pide el permiso de micro ahora, al inicio (una sola vez)
+/* ============================================================= */
+/* ===============  CANDADO DE LICENCIA (offline)  ============== */
+/* ============================================================= */
+/* Sin servidor: el código válido sigue un PATRÓN SECRETO (cuerpo + 2 dígitos
+   de control derivados con un salt). El generador usa el MISMO algoritmo.   */
+var LS_LIC='lienzo_lic_v1', LS_CODE='lienzo_code_v1', LS_ONB='lienzo_onb_v1';
+var ALPHA='ABCDEFGHJKMNPQRSTUVWXYZ23456789';   // sin 0 O 1 I L (evita confusiones)
+var SALT='Lienzo·Esttik·secreto·7K9·v1';        // <-- debe coincidir con el generador
+var MASTER='ESTTIK-LIENZO';                      // código maestro del vendedor (siempre vale)
+
+function lsGet(k){try{return localStorage.getItem(k);}catch(_){return null;}}
+function lsSet(k,v){try{localStorage.setItem(k,v);}catch(_){}}
+function lsDel(k){try{localStorage.removeItem(k);}catch(_){}}
+function normCode(s){return (s||'').toUpperCase().replace(/[^A-Z0-9]/g,'');}
+function check2(body){
+  var s=SALT+body, h1=2166136261, h2=5381;
+  for(var i=0;i<s.length;i++){var c=s.charCodeAt(i);
+    h1=((h1^c)>>>0); h1=((h1*16777619)>>>0);
+    h2=(((h2*33)>>>0)+c+i*131)>>>0;}
+  return ALPHA[h1%ALPHA.length]+ALPHA[h2%ALPHA.length];
+}
+function isValidCode(raw){
+  var n=normCode(raw);
+  if(n && n===normCode(MASTER)) return true;     // maestro siempre válido
+  if(n.length!==8) return false;
+  return check2(n.slice(0,6))===n.slice(6);
+}
+
+var lock=document.getElementById('lock');
+var codeInput=document.getElementById('codeInput');
+var lockErr=document.getElementById('lockErr');
+
+function fmtTyping(n){ n=normCode(n).slice(0,8); return n.length>4?n.slice(0,4)+'-'+n.slice(4):n; }
+codeInput.addEventListener('input',function(){
+  var pos=this.value.length;
+  this.value=fmtTyping(this.value);
+  lockErr.textContent='';
+});
+codeInput.addEventListener('keydown',function(e){ if(e.key==='Enter') document.getElementById('activateBtn').click(); });
+
+document.getElementById('activateBtn').addEventListener('click',function(){
+  var val=codeInput.value;
+  if(isValidCode(val)){
+    lsSet(LS_LIC,'ok'); lsSet(LS_CODE,normCode(val));
+    lockErr.textContent='';
+    lock.classList.add('hidden');
+    afterUnlock();
+  }else{
+    lockErr.textContent='Código no válido. Revísalo e inténtalo de nuevo.';
+    codeInput.focus();
+  }
 });
 
-window.__drawObject=drawObject;   // para pruebas
+/* ===================== ONBOARDING ===================== */
+var onboard=document.getElementById('onboard');
+var obSteps=onboard.querySelectorAll('.ob-step');
+var obDots=onboard.querySelectorAll('.ob-dots i');
+var obIdx=0;
+function showStep(i){
+  obIdx=Math.max(0,Math.min(obSteps.length-1,i));
+  obSteps.forEach(function(s,k){s.classList.toggle('hidden',k!==obIdx);});
+  obDots.forEach(function(d,k){d.classList.toggle('on',k===obIdx);});
+  onboard.scrollTop=0;
+}
+onboard.querySelectorAll('[data-next]').forEach(function(b){
+  b.addEventListener('click',function(){ showStep(obIdx+1); });
+});
+document.getElementById('micBtn').addEventListener('click',function(){ warmup(); });
+document.getElementById('onbDone').addEventListener('click',function(){
+  lsSet(LS_ONB,'1');
+  onboard.classList.add('hidden');
+  startApp();
+});
+function showOnboard(){
+  // aviso iOS standalone dentro del paso 2
+  if(isIOSstandalone()){var w=document.getElementById('iosWarn');if(w)w.classList.remove('hidden');}
+  showStep(0);
+  onboard.classList.remove('hidden');
+}
 
-/* Aviso: en iPhone abierto como app (standalone), la voz no funciona (límite de Apple) */
-(function(){
+/* ===================== AJUSTES (engranaje) ===================== */
+var settings=document.getElementById('settings');
+document.getElementById('gear').addEventListener('click',function(){
+  var c=lsGet(LS_CODE);
+  document.getElementById('setInfo').textContent = c ? ('Licencia activa en este móvil · '+(c.length>4?c.slice(0,4)+'-'+c.slice(4):c)) : 'Licencia activa en este móvil.';
+  settings.classList.remove('hidden');
+});
+document.getElementById('setClose').addEventListener('click',function(){ settings.classList.add('hidden'); });
+document.getElementById('setTutorial').addEventListener('click',function(){
+  settings.classList.add('hidden'); showOnboard();
+});
+document.getElementById('setMic').addEventListener('click',function(){
+  settings.classList.add('hidden'); warmup(); toast('Probando micrófono y voz…',2500);
+});
+document.getElementById('setReset').addEventListener('click',function(e){
+  e.preventDefault();
+  if(confirm('¿Desactivar la licencia y el tutorial en este móvil? Tendrás que volver a introducir el código.')){
+    lsDel(LS_LIC); lsDel(LS_CODE); lsDel(LS_ONB);
+    settings.classList.add('hidden');
+    codeInput.value=''; lockErr.textContent='';
+    lock.classList.remove('hidden');
+  }
+});
+
+/* ===================== Arranque / gate ===================== */
+function isIOSstandalone(){
   var isIOS=/iP(hone|ad|od)/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
   var standalone=(navigator.standalone===true)||(window.matchMedia&&window.matchMedia('(display-mode: standalone)').matches);
-  if(isIOS&&standalone){var w=document.getElementById('iosWarn');if(w)w.style.display='block';}
-})();
+  return isIOS&&standalone;
+}
+function startApp(){
+  resize();
+  warmup();   // pide permiso de micro + carga la voz al entrar al lienzo
+}
+function afterUnlock(){
+  if(lsGet(LS_ONB)==='1') startApp();
+  else showOnboard();
+}
+
+window.__drawObject=drawObject;   // para pruebas
+window.__isValidCode=isValidCode; // para pruebas
 
 resize();
+/* Decidir qué pantalla mostrar al cargar */
+if(lsGet(LS_LIC)==='ok'){
+  if(lsGet(LS_ONB)==='1') startApp();
+  else showOnboard();
+}else{
+  lock.classList.remove('hidden');
+  setTimeout(function(){try{codeInput.focus();}catch(_){}} ,300);
+}
 })();
 </script>
 </body>
