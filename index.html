@@ -179,7 +179,7 @@
     <div class="lead">Introduce tu código de activación. Se desbloquea <b>para siempre</b> en este móvil.</div>
     <div class="field">
       <label>Código de activación</label>
-      <input id="codeInput" placeholder="XXXX-XXXX" autocomplete="off" autocapitalize="characters" autocorrect="off" spellcheck="false" inputmode="text" maxlength="11">
+      <input id="codeInput" placeholder="XXXX-XXXX" autocomplete="off" autocapitalize="characters" autocorrect="off" spellcheck="false" inputmode="text" maxlength="14">
     </div>
     <div class="err" id="lockErr"></div>
     <button class="btn" id="activateBtn">Activar</button>
@@ -872,7 +872,7 @@ var lock=document.getElementById('lock');
 var codeInput=document.getElementById('codeInput');
 var lockErr=document.getElementById('lockErr');
 
-function fmtTyping(n){ n=normCode(n).slice(0,8); return n.length>4?n.slice(0,4)+'-'+n.slice(4):n; }
+function fmtTyping(n){ n=normCode(n).slice(0,13); return n.length>4?n.slice(0,4)+'-'+n.slice(4):n; }
 codeInput.addEventListener('input',function(){
   var pos=this.value.length;
   this.value=fmtTyping(this.value);
