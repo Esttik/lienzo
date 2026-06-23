@@ -237,6 +237,7 @@
     <div class="set-row">
       <button class="btn ghost" id="setTutorial">Ver el tutorial otra vez</button>
       <button class="btn ghost" id="setMic">Reactivar / probar el micrófono</button>
+      <button class="btn ghost" id="setPractice">Modo práctica (escribir palabra)</button>
       <button class="btn" id="setClose">Volver al dibujo</button>
     </div>
     <div class="note" id="setInfo"></div>
@@ -753,12 +754,12 @@ function stopMic(){
   if(voskRec){try{voskRec.remove();}catch(_){}voskRec=null;}
 }
 /* al empezar: permiso de micro (silencioso) + carga del motor de voz en segundo plano */
-function warmup(){
+function requestMic(){   // pide el micro SOLO cuando el usuario lo decide (no al abrir la app)
   if(navigator.mediaDevices&&navigator.mediaDevices.getUserMedia){
     navigator.mediaDevices.getUserMedia({audio:true}).then(function(s){s.getTracks().forEach(function(t){t.stop();});}).catch(function(){});
   }
-  initVosk();
 }
+function warmup(){ initVosk(); }   // al abrir: solo carga el motor de voz, SIN pedir micro
 function arm(){
   if(armed)return;
   if(!voskReady){
@@ -821,12 +822,8 @@ function toggleManual(force){var show=force!==undefined?force:manual.classList.c
 document.getElementById('manualGo').addEventListener('click',function(){
   var obj=pickObject(mi.value);mi.value='';toggleManual(false);drawObject(obj);});
 mi.addEventListener('keydown',function(e){if(e.key==='Enter')document.getElementById('manualGo').click();});
-var taps=0,tt=null;
 document.getElementById('undoBtn').addEventListener('click',function(){
-  userStrokes.pop(); redrawUser();           // INSTANTÁNEO, como Instagram
-  taps++;clearTimeout(tt);
-  tt=setTimeout(function(){taps=0;},500);
-  if(taps>=3){taps=0;toggleManual();}        // triple toque = modo manual
+  userStrokes.pop(); redrawUser();           // INSTANTÁNEO, como Instagram (sin gesto secreto)
 });
 
 /* ============================================================= */
@@ -896,7 +893,7 @@ function showStep(i){
 onboard.querySelectorAll('[data-next]').forEach(function(b){
   b.addEventListener('click',function(){ showStep(obIdx+1); });
 });
-document.getElementById('micBtn').addEventListener('click',function(){ warmup(); });
+document.getElementById('micBtn').addEventListener('click',function(){ requestMic(); warmup(); });
 document.getElementById('onbDone').addEventListener('click',function(){
   lsSet(LS_ONB,'1');
   onboard.classList.add('hidden');
@@ -921,7 +918,10 @@ document.getElementById('setTutorial').addEventListener('click',function(){
   settings.classList.add('hidden'); showOnboard();
 });
 document.getElementById('setMic').addEventListener('click',function(){
-  settings.classList.add('hidden'); warmup(); toast('Probando micrófono y voz…',2500);
+  settings.classList.add('hidden'); requestMic(); warmup(); toast('Probando micrófono y voz…',2500);
+});
+document.getElementById('setPractice').addEventListener('click',function(){
+  settings.classList.add('hidden'); toggleManual(true);
 });
 document.getElementById('setReset').addEventListener('click',function(e){
   e.preventDefault();
