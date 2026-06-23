@@ -28,9 +28,13 @@
   #stage{flex:1 1 auto;position:relative;margin:2px 9px 0 9px;border-radius:26px;
     background:#000;overflow:hidden;touch-action:none;}
   #art{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none;}
-  /* pestañita lateral izquierda (cajón de plantillas) */
-  #sidetab{position:absolute;left:-9px;top:50%;transform:translateY(-50%);
-    width:13px;height:46px;border-radius:8px;background:#fff;opacity:.95;}
+  /* ---- Barra lateral del pincel (réplica Instagram) ---- */
+  #brushzone{position:absolute;left:0;top:0;bottom:0;width:46px;z-index:7;touch-action:none;}
+  /* cuña: ancha arriba (pincel gordo), fina abajo (pincel fino) */
+  #brushwedge{position:absolute;left:0;top:0;pointer-events:none;overflow:visible;}
+  /* manija blanca: su diámetro = grosor real del pincel en ese punto */
+  #sidetab{position:absolute;border-radius:50%;background:#fff;transform:translate(-50%,-50%);
+    box-shadow:0 0 0 1.5px rgba(0,0,0,.18),0 1px 5px rgba(0,0,0,.45);}
 
   /* ---- Paleta inferior (réplica Instagram) ---- */
   #palette{display:flex;align-items:center;justify-content:space-between;
@@ -83,11 +87,6 @@
   .lead{text-align:center;font-size:15px;line-height:1.5;color:#d9d2ee;}
   .field label{display:block;font-size:12.5px;color:#b9a9e6;margin:0 0 7px 2px;
     text-transform:uppercase;letter-spacing:1.5px;font-weight:700;}
-  #codeInput{width:100%;padding:16px;border-radius:14px;border:1.5px solid #3a2f5e;
-    background:rgba(255,255,255,.04);color:#fff;font-size:21px;font-weight:700;
-    text-align:center;letter-spacing:4px;text-transform:uppercase;}
-  #codeInput::placeholder{color:#6a608a;letter-spacing:2px;font-weight:600;}
-  #codeInput:focus{outline:none;border-color:#a24bff;background:rgba(162,75,255,.08);}
   .btn{padding:16px;border:none;border-radius:14px;font-size:17px;font-weight:800;
     background:linear-gradient(135deg,#a24bff,#ff2d8f);color:#fff;letter-spacing:.3px;
     box-shadow:0 10px 30px rgba(162,75,255,.3);}
@@ -131,18 +130,26 @@
   <div id="topbar">
     <div class="txt" id="undoBtn">Deshacer</div>
     <div id="tools">
-      <div class="tool sel"><svg width="17" height="17" viewBox="0 0 24 24"><path d="M12 2 L17 13 a5 5 0 0 1 -10 0 Z" fill="#0a0a0a"/></svg></div>
-      <div class="tool"><svg width="17" height="17" viewBox="0 0 24 24"><path d="M12 5 L12 19 M6 11 L12 5 L18 11" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
-      <div class="tool"><svg width="17" height="17" viewBox="0 0 24 24"><path d="M12 2 L16 12 v6 a4 4 0 0 1 -8 0 v-6 Z" fill="none" stroke="#fff" stroke-width="2.2" stroke-linejoin="round"/></svg></div>
-      <div class="tool"><svg width="18" height="18" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="#fff" stroke-width="2"/><circle cx="9" cy="9" r="1.4" fill="#fff"/><circle cx="15" cy="9" r="1.4" fill="#fff"/><circle cx="9.5" cy="15" r="1.4" fill="#fff"/><circle cx="14.5" cy="15" r="1.4" fill="#fff"/></svg></div>
-      <div class="tool"><svg width="16" height="16" viewBox="0 0 24 24"><rect x="6" y="3" width="12" height="18" rx="3" fill="none" stroke="#fff" stroke-width="2.2"/><path d="M9 8 h6 M9 12 h6" stroke="#fff" stroke-width="1.8" stroke-linecap="round"/></svg></div>
+      <!-- 1. Lápiz (seleccionado): punta sólida hacia abajo -->
+      <div class="tool sel"><svg width="18" height="18" viewBox="0 0 24 24"><path d="M12 3.4c-3 0-4 2.4-4 4.9v4.1c0 2 1.6 4 4 7.6 2.4-3.6 4-5.6 4-7.6V8.3c0-2.5-1-4.9-4-4.9z" fill="#0a0a0a"/></svg></div>
+      <!-- 2. Flecha hacia arriba -->
+      <div class="tool"><svg width="18" height="18" viewBox="0 0 24 24"><path d="M12 19 L12 5.5 M6.4 11 L12 5.2 L17.6 11" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+      <!-- 3. Rotulador: cuerpo recto con punta de cincel hacia abajo -->
+      <div class="tool"><svg width="18" height="18" viewBox="0 0 24 24"><path d="M9 3.6h6c.6 0 1 .5 1 1.1V12l-4 7.2-4-7.2V4.7c0-.6.4-1.1 1-1.1z" fill="none" stroke="#fff" stroke-width="2" stroke-linejoin="round"/></svg></div>
+      <!-- 4. Neón: aro con puntitos -->
+      <div class="tool"><svg width="19" height="19" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.6" fill="none" stroke="#fff" stroke-width="2"/><circle cx="9" cy="9.2" r="1.45" fill="#fff"/><circle cx="15" cy="9.2" r="1.45" fill="#fff"/><circle cx="9.4" cy="15" r="1.45" fill="#fff"/><circle cx="14.6" cy="15" r="1.45" fill="#fff"/></svg></div>
+      <!-- 5. Borrador: pastilla con marcas -->
+      <div class="tool"><svg width="17" height="17" viewBox="0 0 24 24"><rect x="6.5" y="3" width="11" height="18" rx="3.2" fill="none" stroke="#fff" stroke-width="2.1"/><path d="M9.5 8.5 h5 M9.5 12 h5" stroke="#fff" stroke-width="1.7" stroke-linecap="round"/></svg></div>
     </div>
     <div class="txt bold">Listo</div>
   </div>
 
   <div id="stage">
-    <div id="sidetab"></div>
     <canvas id="art"></canvas>
+    <div id="brushzone">
+      <svg id="brushwedge"></svg>
+      <div id="sidetab"></div>
+    </div>
   </div>
 
   <div id="palette">
@@ -169,22 +176,6 @@
 <div id="manual" class="hidden">
   <input id="manualInput" placeholder="escribe: una casa..." autocomplete="off" autocapitalize="off">
   <button id="manualGo">Ir</button>
-</div>
-
-<!-- ===================== CANDADO DE LICENCIA ===================== -->
-<div id="lock" class="ov hidden">
-  <div class="card">
-    <div class="logo">🎩</div>
-    <div class="brand">Lienzo<span class="sub">Edición Mago</span></div>
-    <div class="lead">Introduce tu código de activación. Se desbloquea <b>para siempre</b> en este móvil.</div>
-    <div class="field">
-      <label>Código de activación</label>
-      <input id="codeInput" placeholder="XXXX-XXXX" autocomplete="off" autocapitalize="characters" autocorrect="off" spellcheck="false" inputmode="text" maxlength="14">
-    </div>
-    <div class="err" id="lockErr"></div>
-    <button class="btn" id="activateBtn">Activar</button>
-    <div class="note">¿Aún no tienes código? Escribe al vendedor para conseguir el tuyo.</div>
-  </div>
 </div>
 
 <!-- ===================== ONBOARDING GUIADO ===================== -->
@@ -251,7 +242,7 @@
       <button class="btn ghost" id="setVolTrig">Botón de volumen (app): Activado</button>
     </div>
     <div class="note" id="setInfo"></div>
-    <div class="note"><a href="#" id="setReset">Desactivar licencia en este móvil</a></div>
+    <div class="note"><a href="#" id="setReset">Reiniciar tutorial de bienvenida</a></div>
   </div>
 </div>
 
@@ -322,7 +313,12 @@ var BANK={
     [[44,30],[48,40]],[[56,28],[52,38]]           // vapor
   ];},
   manzana:function(){return [circle(50,56,22),[[42,40],[50,46],[58,40]],[[50,44],[51,28]],[[51,32],[62,26],[59,36],[51,34]]];},
-  platano:function(){return [arc(50,40,34,42*R,138*R,16).concat(arc(48,52,40,128*R,52*R,16)),[[22,52],[18,44]],[[78,52],[82,44]]];},
+  platano:function(){return [
+    [[30,20],[21,34],[18,52],[26,68],[44,76],[64,74],[78,62],   // cuerpo curvo (exterior)
+     [72,58],[58,66],[43,65],[33,53],[31,38],[37,26]],          // interior -> cierra el plátano
+    [[30,20],[33,12],[40,12]],                                  // tallo (arriba a la izquierda)
+    [[78,62],[85,57]]                                           // puntita (abajo a la derecha)
+  ];},
   globo:function(){return [circle(50,40,20),[[50,60],[48,64],[52,64],[50,60]],[[50,64],[54,84],[46,90]]];},
   paraguas:function(){return [arc(50,46,28,180*R,360*R,18),[[22,46],[78,46]],[[50,46],[50,80]],arc(56,80,6,90*R,260*R,8),[[36,46],[44,30]],[[64,46],[56,30]]];},
   llave:function(){return [circle(34,42,11),[[42,49],[72,79]],[[72,79],[78,73]],[[66,73],[72,67]]];},
@@ -581,7 +577,59 @@ window.addEventListener('resize',resize);
 
 function clearCanvas(){if(anim){cancelAnimationFrame(anim);anim=null;}ctx.clearRect(0,0,CW,CH);}
 
-function brushWidth(){return Math.max(8,Math.min(CW,CH)*0.030);}
+/* ===== Grosor del pincel: cuña lateral + manija = grosor real ===== */
+/* La cuña es ancha arriba (pincel gordo) y fina abajo (pincel fino).
+   La manija blanca es un círculo cuyo diámetro coincide EXACTAMENTE con
+   el grosor del trazo en su posición (igual que Instagram). */
+var BR_MIN=0.014, BR_K=0.060;                       // factores del grosor
+var brushFactor=(function(){var v=parseFloat(lsGet('lienzo_brush'));return isNaN(v)?0.45:v;})();
+function brushWidth(){return Math.max(4,Math.min(CW,CH)*(BR_MIN+brushFactor*BR_K));}
+var BR_CX=12;                                        // centro horizontal de la barra (px)
+function brushBand(H){return {top:H*0.16, bottom:H*0.66};}  // recorrido vertical de la cuña
+
+function layoutBrush(){
+  var st=document.getElementById('stage'),tab=document.getElementById('sidetab'),
+      wedge=document.getElementById('brushwedge');
+  if(!st||!tab||!wedge)return;
+  var W=st.clientWidth,H=st.clientHeight,m=Math.min(W,H);
+  var b=brushBand(H),range=b.bottom-b.top;
+  var wTop=Math.max(4,m*(BR_MIN+1*BR_K));            // ancho de la cuña arriba (pincel máx)
+  var wBot=Math.max(4,m*(BR_MIN+0*BR_K));            // ancho de la cuña abajo (pincel mín)
+  // dibuja la cuña (trapecio con extremos redondeados)
+  wedge.setAttribute('width', BR_CX+wTop/2+4);
+  wedge.setAttribute('height', H);
+  wedge.setAttribute('viewBox','0 0 '+(BR_CX+wTop/2+4)+' '+H);
+  wedge.innerHTML='<path d="M'+(BR_CX-wTop/2)+' '+b.top+
+    ' L'+(BR_CX+wTop/2)+' '+b.top+
+    ' L'+(BR_CX+wBot/2)+' '+b.bottom+
+    ' L'+(BR_CX-wBot/2)+' '+b.bottom+' Z" fill="rgba(255,255,255,0.5)"/>';
+  // manija = grosor real
+  var d=brushWidth();
+  tab.style.width=d+'px';tab.style.height=d+'px';
+  tab.style.left=BR_CX+'px';
+  tab.style.top=(b.top+(1-brushFactor)*range)+'px';
+}
+(function brushSlider(){
+  var zone=document.getElementById('brushzone'),st=document.getElementById('stage');
+  if(!zone||!st)return;
+  var dragging=false,startY=0,moved=0;
+  function setFromY(cy){
+    var r=st.getBoundingClientRect(),b=brushBand(r.height),range=b.bottom-b.top;
+    brushFactor=Math.max(0,Math.min(1,1-((cy-r.top-b.top)/range)));
+    lsSet('lienzo_brush',brushFactor.toFixed(3));layoutBrush();
+  }
+  zone.addEventListener('pointerdown',function(e){dragging=true;startY=e.clientY;moved=0;
+    if(zone.setPointerCapture)zone.setPointerCapture(e.pointerId);setFromY(e.clientY);
+    e.preventDefault();e.stopPropagation();},{passive:false});
+  zone.addEventListener('pointermove',function(e){if(!dragging)return;moved+=Math.abs(e.clientY-startY);
+    setFromY(e.clientY);e.preventDefault();e.stopPropagation();},{passive:false});
+  zone.addEventListener('pointerup',function(e){dragging=false;
+    if(moved<6){var tab=document.getElementById('sidetab');if(tab)tab.click();} // toque = gatillo secreto si está elegido
+    e.stopPropagation();});
+  zone.addEventListener('pointercancel',function(){dragging=false;});
+  setTimeout(layoutBrush,60);
+})();
+window.addEventListener('resize',layoutBrush);
 
 /* Catmull-Rom: trazo SUAVE que pasa por los puntos de control */
 function cr(p0,p1,p2,p3,t){var t2=t*t,t3=t2*t;return [
@@ -786,8 +834,7 @@ function arm(){
 /* ===== Dibujo libre real (pincel blanco estilo Instagram) ===== */
 var userStrokes=[],drawing=false,cur=null;
 function overlaysOpen(){
-  return !document.getElementById('lock').classList.contains('hidden')
-      || !document.getElementById('onboard').classList.contains('hidden')
+  return !document.getElementById('onboard').classList.contains('hidden')
       || !document.getElementById('settings').classList.contains('hidden');
 }
 function helpReady(){return !overlaysOpen() && document.getElementById('manual').classList.contains('hidden');}
@@ -845,57 +892,15 @@ document.getElementById('undoBtn').addEventListener('click',function(){
 });
 
 /* ============================================================= */
-/* ===============  CANDADO DE LICENCIA (offline)  ============== */
+/* ===============  Almacenamiento local (sin licencia) ======== */
 /* ============================================================= */
-/* Sin servidor: el código válido sigue un PATRÓN SECRETO (cuerpo + 2 dígitos
-   de control derivados con un salt). El generador usa el MISMO algoritmo.   */
-var LS_LIC='lienzo_lic_v1', LS_CODE='lienzo_code_v1', LS_ONB='lienzo_onb_v1';
-var ALPHA='ABCDEFGHJKMNPQRSTUVWXYZ23456789';   // sin 0 O 1 I L (evita confusiones)
-var SALT='Lienzo·Esttik·secreto·7K9·v1';        // <-- debe coincidir con el generador
-var MASTER='ESTTIK-LIENZO';                      // código maestro del vendedor (siempre vale)
+/* La app se vende en App Store: el pago lo gestiona Apple, no hay
+   código de activación. Solo guardamos si ya se vio el tutorial.  */
+var LS_ONB='lienzo_onb_v1';
 
 function lsGet(k){try{return localStorage.getItem(k);}catch(_){return null;}}
 function lsSet(k,v){try{localStorage.setItem(k,v);}catch(_){}}
 function lsDel(k){try{localStorage.removeItem(k);}catch(_){}}
-function normCode(s){return (s||'').toUpperCase().replace(/[^A-Z0-9]/g,'');}
-function check2(body){
-  var s=SALT+body, h1=2166136261, h2=5381;
-  for(var i=0;i<s.length;i++){var c=s.charCodeAt(i);
-    h1=((h1^c)>>>0); h1=((h1*16777619)>>>0);
-    h2=(((h2*33)>>>0)+c+i*131)>>>0;}
-  return ALPHA[h1%ALPHA.length]+ALPHA[h2%ALPHA.length];
-}
-function isValidCode(raw){
-  var n=normCode(raw);
-  if(n && n===normCode(MASTER)) return true;     // maestro siempre válido
-  if(n.length!==8) return false;
-  return check2(n.slice(0,6))===n.slice(6);
-}
-
-var lock=document.getElementById('lock');
-var codeInput=document.getElementById('codeInput');
-var lockErr=document.getElementById('lockErr');
-
-function fmtTyping(n){ n=normCode(n).slice(0,13); return n.length>4?n.slice(0,4)+'-'+n.slice(4):n; }
-codeInput.addEventListener('input',function(){
-  var pos=this.value.length;
-  this.value=fmtTyping(this.value);
-  lockErr.textContent='';
-});
-codeInput.addEventListener('keydown',function(e){ if(e.key==='Enter') document.getElementById('activateBtn').click(); });
-
-document.getElementById('activateBtn').addEventListener('click',function(){
-  var val=codeInput.value;
-  if(isValidCode(val)){
-    lsSet(LS_LIC,'ok'); lsSet(LS_CODE,normCode(val));
-    lockErr.textContent='';
-    lock.classList.add('hidden');
-    afterUnlock();
-  }else{
-    lockErr.textContent='Código no válido. Revísalo e inténtalo de nuevo.';
-    codeInput.focus();
-  }
-});
 
 /* ===================== ONBOARDING ===================== */
 var onboard=document.getElementById('onboard');
@@ -927,8 +932,6 @@ function showOnboard(){
 /* ===================== AJUSTES (engranaje) ===================== */
 var settings=document.getElementById('settings');
 document.getElementById('gear').addEventListener('click',function(){
-  var c=lsGet(LS_CODE);
-  document.getElementById('setInfo').textContent = c ? ('Licencia activa en este móvil · '+(c.length>4?c.slice(0,4)+'-'+c.slice(4):c)) : 'Licencia activa en este móvil.';
   settings.classList.remove('hidden');
 });
 document.getElementById('setClose').addEventListener('click',function(){ settings.classList.add('hidden'); });
@@ -958,11 +961,10 @@ document.getElementById('setPractice').addEventListener('click',function(){
 })();
 document.getElementById('setReset').addEventListener('click',function(e){
   e.preventDefault();
-  if(confirm('¿Desactivar la licencia y el tutorial en este móvil? Tendrás que volver a introducir el código.')){
-    lsDel(LS_LIC); lsDel(LS_CODE); lsDel(LS_ONB);
+  if(confirm('¿Reiniciar el tutorial de bienvenida en este móvil?')){
+    lsDel(LS_ONB);
     settings.classList.add('hidden');
-    codeInput.value=''; lockErr.textContent='';
-    lock.classList.remove('hidden');
+    showOnboard();
   }
 });
 
@@ -983,17 +985,11 @@ function afterUnlock(){
 }
 
 window.__drawObject=drawObject;   // para pruebas
-window.__isValidCode=isValidCode; // para pruebas
 
 resize();
-/* Decidir qué pantalla mostrar al cargar */
-if(lsGet(LS_LIC)==='ok'){
-  if(lsGet(LS_ONB)==='1') startApp();
-  else showOnboard();
-}else{
-  lock.classList.remove('hidden');
-  setTimeout(function(){try{codeInput.focus();}catch(_){}} ,300);
-}
+/* Al abrir: tutorial la primera vez, luego directo a dibujar */
+if(lsGet(LS_ONB)==='1') startApp();
+else showOnboard();
 })();
 </script>
 </body>
