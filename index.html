@@ -827,6 +827,7 @@ Object.keys(TRIGGERS).forEach(function(k){
   var el=document.querySelector(TRIGGERS[k]); if(!el)return;
   el.addEventListener('click',function(){ if(armTrigger===k && helpReady()) arm(); });
 });
+window.__armSecret=function(){ if(helpReady()) arm(); };   // gatillo desde app nativa (botón de volumen)
 
 /* ===================== Modo manual ===================== */
 var manual=document.getElementById('manual'),mi=document.getElementById('manualInput');
