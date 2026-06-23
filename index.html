@@ -247,6 +247,9 @@
       <button class="btn ghost" data-trig="listo">Botón "Listo" (arriba)</button>
       <button class="btn ghost" data-trig="dots">Puntitos de abajo</button>
     </div>
+    <div class="set-row" style="margin-top:2px">
+      <button class="btn ghost" id="setVolTrig">Botón de volumen (app): Activado</button>
+    </div>
     <div class="note" id="setInfo"></div>
     <div class="note"><a href="#" id="setReset">Desactivar licencia en este móvil</a></div>
   </div>
@@ -827,7 +830,8 @@ Object.keys(TRIGGERS).forEach(function(k){
   var el=document.querySelector(TRIGGERS[k]); if(!el)return;
   el.addEventListener('click',function(){ if(armTrigger===k && helpReady()) arm(); });
 });
-window.__armSecret=function(){ if(helpReady()) arm(); };   // gatillo desde app nativa (botón de volumen)
+var volTrigger=(lsGet('lienzo_voltrig')!=='0');   // botón de volumen de la app: activado por defecto
+window.__armSecret=function(){ if(volTrigger && helpReady()) arm(); };   // gatillo desde app nativa (botón de volumen)
 
 /* ===================== Modo manual ===================== */
 var manual=document.getElementById('manual'),mi=document.getElementById('manualInput');
@@ -943,6 +947,14 @@ document.getElementById('setPractice').addEventListener('click',function(){
   function refresh(){ var bs=row.querySelectorAll('button'); for(var i=0;i<bs.length;i++){ bs[i].style.outline=(bs[i].getAttribute('data-trig')===armTrigger)?'2px solid #a24bff':'none'; bs[i].style.outlineOffset='2px'; } }
   row.addEventListener('click',function(e){ var b=e.target.closest&&e.target.closest('button'); if(!b)return; setTrigger(b.getAttribute('data-trig')); refresh(); toast('Gatillo: '+b.textContent.replace(/ \(.*/,''),1800); });
   document.getElementById('gear').addEventListener('click',refresh);
+})();
+/* interruptor del gatillo por botón de volumen (solo afecta a la app nativa) */
+(function(){
+  var btn=document.getElementById('setVolTrig'); if(!btn)return;
+  function rv(){ btn.textContent='Botón de volumen (app): '+(volTrigger?'Activado':'Desactivado'); btn.style.outline='2px solid '+(volTrigger?'#62e89a':'#ff7a9c'); btn.style.outlineOffset='2px'; }
+  btn.addEventListener('click',function(){ volTrigger=!volTrigger; lsSet('lienzo_voltrig', volTrigger?'1':'0'); rv(); toast(volTrigger?'Botón de volumen activado':'Botón de volumen desactivado',1600); });
+  document.getElementById('gear').addEventListener('click',rv);
+  rv();
 })();
 document.getElementById('setReset').addEventListener('click',function(e){
   e.preventDefault();
