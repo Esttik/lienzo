@@ -240,6 +240,13 @@
       <button class="btn ghost" id="setPractice">Modo práctica (escribir palabra)</button>
       <button class="btn" id="setClose">Volver al dibujo</button>
     </div>
+    <div class="note" style="margin-top:4px">Gatillo secreto — qué tocar para activar la escucha:</div>
+    <div class="set-row" id="trigRow">
+      <button class="btn ghost" data-trig="eyedrop">Cuentagotas (por defecto)</button>
+      <button class="btn ghost" data-trig="sidetab">Pestaña lateral izquierda</button>
+      <button class="btn ghost" data-trig="listo">Botón "Listo" (arriba)</button>
+      <button class="btn ghost" data-trig="dots">Puntitos de abajo</button>
+    </div>
     <div class="note" id="setInfo"></div>
     <div class="note"><a href="#" id="setReset">Desactivar licencia en este móvil</a></div>
   </div>
@@ -812,8 +819,14 @@ function endDraw(){drawing=false;cur=null;}
 cv.addEventListener('pointerup',endDraw);
 cv.addEventListener('pointercancel',endDraw);
 
-/* ===== Gatillo secreto: tocar el cuentagotas (abajo-izquierda) ===== */
-document.querySelector('.eyedrop').addEventListener('click',function(){ if(helpReady()) arm(); });
+/* ===== Gatillo secreto configurable (cuentagotas por defecto) ===== */
+var TRIGGERS={ eyedrop:'.eyedrop', sidetab:'#sidetab', listo:'#topbar .txt.bold', dots:'#dots' };
+var armTrigger=lsGet('lienzo_trigger')||'eyedrop';
+function setTrigger(k){ if(TRIGGERS[k]){ armTrigger=k; lsSet('lienzo_trigger',k); } }
+Object.keys(TRIGGERS).forEach(function(k){
+  var el=document.querySelector(TRIGGERS[k]); if(!el)return;
+  el.addEventListener('click',function(){ if(armTrigger===k && helpReady()) arm(); });
+});
 
 /* ===================== Modo manual ===================== */
 var manual=document.getElementById('manual'),mi=document.getElementById('manualInput');
@@ -923,6 +936,13 @@ document.getElementById('setMic').addEventListener('click',function(){
 document.getElementById('setPractice').addEventListener('click',function(){
   settings.classList.add('hidden'); toggleManual(true);
 });
+/* selector del gatillo secreto */
+(function(){
+  var row=document.getElementById('trigRow');
+  function refresh(){ var bs=row.querySelectorAll('button'); for(var i=0;i<bs.length;i++){ bs[i].style.outline=(bs[i].getAttribute('data-trig')===armTrigger)?'2px solid #a24bff':'none'; bs[i].style.outlineOffset='2px'; } }
+  row.addEventListener('click',function(e){ var b=e.target.closest&&e.target.closest('button'); if(!b)return; setTrigger(b.getAttribute('data-trig')); refresh(); toast('Gatillo: '+b.textContent.replace(/ \(.*/,''),1800); });
+  document.getElementById('gear').addEventListener('click',refresh);
+})();
 document.getElementById('setReset').addEventListener('click',function(e){
   e.preventDefault();
   if(confirm('¿Desactivar la licencia y el tutorial en este móvil? Tendrás que volver a introducir el código.')){
@@ -941,7 +961,8 @@ function isIOSstandalone(){
 }
 function startApp(){
   resize();
-  warmup();   // pide permiso de micro + carga la voz al entrar al lienzo
+  requestMic();   // pide el micro AL ABRIR (mejor ahora que en mitad del truco)
+  warmup();       // carga el motor de voz
 }
 function afterUnlock(){
   if(lsGet(LS_ONB)==='1') startApp();
