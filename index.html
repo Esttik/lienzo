@@ -671,6 +671,14 @@ function onVoskResult(message){
   if(obj&&lookup(obj)){armed=false;clearTimeout(listenTimer);setCue('off');stopMic();drawObject(obj);}
   // si no es un objeto del banco, sigue escuchando hasta el tiempo límite
 }
+/* resultado PARCIAL: detecta la palabra al vuelo, sin esperar a que termines de hablar */
+function onVoskPartial(message){
+  if(!armed)return;
+  var text=message&&message.result&&message.result.partial;
+  if(!text)return;
+  var obj=pickObject(text);
+  if(obj&&lookup(obj)){armed=false;clearTimeout(listenTimer);setCue('off');stopMic();drawObject(obj);}
+}
 function startMic(){
   if(listening)return Promise.resolve(true);
   if(!voskReady)return Promise.resolve(false);
@@ -681,6 +689,7 @@ function startMic(){
     return (micCtx.state==='suspended'?micCtx.resume():Promise.resolve()).then(function(){
       voskRec=new voskModel.KaldiRecognizer(micCtx.sampleRate);
       voskRec.on('result',onVoskResult);
+      voskRec.on('partialresult',onVoskPartial);
       micSrc=micCtx.createMediaStreamSource(micStream);
       micNode=micCtx.createScriptProcessor(4096,1,1);
       micNode.onaudioprocess=function(e){ if(listening){try{voskRec.acceptWaveform(e.inputBuffer);}catch(_){}} };
@@ -713,7 +722,7 @@ function arm(){
   armed=true;clearCanvas();userStrokes=[];setCue('listening');
   startMic().then(function(ok){ if(!ok){armed=false;setCue('off');toast('No pude abrir el micrófono.',2500);} });
   clearTimeout(listenTimer);
-  listenTimer=setTimeout(function(){ if(armed){armed=false;setCue('off');stopMic();} },9000);
+  listenTimer=setTimeout(function(){ if(armed){armed=false;setCue('off');stopMic();} },30000);
 }
 
 /* ===== Dibujo libre real (pincel blanco estilo Instagram) ===== */
