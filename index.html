@@ -416,7 +416,7 @@ var BANK={
   helicoptero:function(){return [[[30,52],[64,52],[70,60],[64,68],[34,68],[28,60],[30,52]],[[64,58],[86,58]],[[82,52],[82,64]],[[20,46],[80,46]],[[50,46],[50,52]],circle(40,60,4,10),[[36,68],[34,76]],[[58,68],[60,76]],[[34,76],[60,76]]];},
   silla:function(){return [[[34,26],[34,56]],[[34,56],[64,56]],[[64,56],[64,26]],[[34,56],[34,82]],[[64,56],[64,82]],[[34,56],[26,56],[26,80]],[[64,56],[72,56],[72,80]],[[36,30],[62,30]]];},
   mesa:function(){return [[[20,40],[80,40],[80,46],[20,46],[20,40]],[[26,46],[26,80]],[[74,46],[74,80]],[[34,46],[34,80]],[[66,46],[66,80]]];},
-  cama:function(){return [[[18,50],[18,72],[82,72],[82,56]],[[18,50],[34,50],[34,40],[18,40],[18,50]],[[34,58],[60,58],[60,52],[40,52],[40,58]],[[18,72],[18,80]],[[82,72],[82,80]]];},
+  cama:function(){return [[[16,68],[84,68],[84,58],[16,58],[16,68]],[[16,58],[16,38],[28,38],[28,58]],[[84,58],[84,46],[76,46],[76,58]],[[30,58],[30,50],[48,50],[48,58]],[[20,68],[20,80]],[[80,68],[80,80]]];},
   puerta:function(){return [[[34,18],[34,84],[66,84],[66,18],[34,18]],[[40,24],[60,24],[60,78],[40,78],[40,24]],circle(57,52,2,8)];},
   ventana:function(){return [[[28,24],[72,24],[72,72],[28,72],[28,24]],[[50,24],[50,72]],[[28,48],[72,48]],[[24,76],[76,76]]];},
   zapato:function(){return [[[22,66],[22,52],[34,48],[40,40],[50,40],[54,48],[78,54],[80,64],[22,66]],[[22,66],[80,66]],[[40,40],[48,42]],[[44,44],[50,46]]];},
@@ -587,22 +587,36 @@ function smooth(pts){
   out.push(pts[pts.length-1]);return out;
 }
 
-/* prep: imperfección de FORMA (no temblor) + trazo suave de pincel */
+/* Deformación coherente de baja frecuencia: hace que círculos y líneas
+   parezcan dibujados a mano (imperfectos pero SIN temblor). Se regenera por figura. */
+var curWarp=null;
+function makeWarp(){
+  var p0=Math.random()*6.283,p1=Math.random()*6.283,p2=Math.random()*6.283,p3=Math.random()*6.283;
+  var a=1.7+Math.random()*1.4;          // amplitud suave (~2% del tamaño)
+  var ox=(Math.random()-.5)*1.6,oy=(Math.random()-.5)*1.6;
+  return function(x,y){
+    return [ x+ox+a*Math.sin(y*0.06+p0)+a*0.45*Math.sin(x*0.115+p1),
+             y+oy+a*Math.sin(x*0.06+p2)+a*0.45*Math.sin(y*0.115+p3) ];
+  };
+}
+/* prep: forma imperfecta a mano (NO temblorosa) + trazo suave de pincel */
 function prep(stroke){
-  // 1) jitter ligero de los vértices base -> forma algo imperfecta
-  var j=stroke.map(function(p){return [p[0]+(Math.random()-.5)*1.6,p[1]+(Math.random()-.5)*1.6];});
-  // 2) líneas rectas: un solo arqueo muy suave (el dedo no va perfectamente recto)
+  var w=curWarp||function(x,y){return [x,y];};
+  // pequeño desplazamiento propio del trazo (las partes no encajan perfectas)
+  var sx=(Math.random()-.5)*1.2,sy=(Math.random()-.5)*1.2;
+  var j=stroke.map(function(p){return w(p[0]+sx,p[1]+sy);});
+  // líneas rectas: un solo arqueo suave (el dedo no va perfectamente recto)
   if(j.length===2){
     var a=j[0],b=j[1],mx=(a[0]+b[0])/2,my=(a[1]+b[1])/2,dx=b[0]-a[0],dy=b[1]-a[1],l=Math.hypot(dx,dy)||1;
-    var bow=(Math.random()-.5)*Math.min(2.6,l*0.05);
+    var bow=(Math.random()-.5)*Math.min(3,l*0.06);
     j=[a,[mx-dy/l*bow,my+dx/l*bow],b];
   }
-  // 3) suaviza con spline -> trazo limpio y confiado
+  // suaviza con spline -> trazo limpio y confiado
   var out=smooth(j);
-  // 4) leve sobre-trazo final (remate que se pasa un pelín)
-  if(out.length>3 && Math.random()<0.55){
+  // leve sobre-trazo final (remate que se pasa un pelín)
+  if(out.length>3 && Math.random()<0.6){
     var q=out[out.length-1],r=out[out.length-3];
-    var ex=q[0]-r[0],ey=q[1]-r[1],el=Math.hypot(ex,ey)||1,g=1.1+Math.random()*1.5;
+    var ex=q[0]-r[0],ey=q[1]-r[1],el=Math.hypot(ex,ey)||1,g=1.1+Math.random()*1.6;
     out.push([q[0]+ex/el*g,q[1]+ey/el*g]);
   }
   return out;
@@ -624,6 +638,7 @@ function fitAndDraw(strokes){
   function place(p){var X=ox+p[0]*scale, Y=oy+p[1]*scale, dx=X-cx, dy=Y-cy;
     return [cx+dx*ca-dy*sa, cy+dx*sa+dy*ca];}
   // preparar y mapear a píxeles
+  curWarp=makeWarp();
   var dens=strokes.map(function(s){return prep(s).map(place);});
   var total=0;dens.forEach(function(s){total+=s.length;});
   var dur=Math.max(750,Math.min(1900,dens.length*230+total*1.1));
