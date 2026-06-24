@@ -856,7 +856,9 @@ function startMic(){
     micStream=stream;
     if(!micCtx)micCtx=new (window.AudioContext||window.webkitAudioContext)();
     return (micCtx.state==='suspended'?micCtx.resume():Promise.resolve()).then(function(){
-      try{ voskRec=new voskModel.KaldiRecognizer(micCtx.sampleRate, GRAMMAR); }  // restringe al vocabulario del banco
+      var NOGRAM=/[?&]nogram/.test(location.search);   // ?nogram=1 -> reconocimiento LIBRE (sin gramática)
+      try{ voskRec = NOGRAM ? new voskModel.KaldiRecognizer(micCtx.sampleRate)
+                            : new voskModel.KaldiRecognizer(micCtx.sampleRate, GRAMMAR); }  // restringe al vocabulario del banco
       catch(_){ voskRec=new voskModel.KaldiRecognizer(micCtx.sampleRate); }       // si falla, reconocimiento libre
       voskRec.on('result',onVoskResult);
       voskRec.on('partialresult',onVoskPartial);
