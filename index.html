@@ -563,13 +563,58 @@ function extractObject(phrase){
   for(var k=0;k<W.length;k++){ if(W[k].c&&STOP.indexOf(W[k].c)===-1&&W[k].c.length>2) return W[k].c; }
   return null;
 }
+/* ---- Emparejado tolerante: seseo (z y c->s), acentos, plurales y 1 error ---- */
+function phon(w){
+  w=clean(w);
+  w=w.replace(/h/g,'').replace(/v/g,'b').replace(/z/g,'s')
+     .replace(/c([ei])/g,'s$1').replace(/qu/g,'k').replace(/c/g,'k')
+     .replace(/gu([ei])/g,'g$1').replace(/ll/g,'y').replace(/(.)\1/g,'$1');
+  if(w.length>3&&w.charAt(w.length-1)==='s')w=w.slice(0,-1);   // plural simple
+  return w;
+}
+/* índice fonético de TODO el banco + sinónimos -> clave canónica */
+var PHON={};
+(function(){ var k; for(k in BANK){PHON[phon(k)]=k;}
+  for(k in SYN){ if(BANK[SYN[k]])PHON[phon(k)]=SYN[k]; } })();
+/* distancia de edición (para tolerar 1 error de transcripción) */
+function lev(a,b){var m=a.length,n=b.length,d=[],i,j;
+  for(i=0;i<=m;i++)d[i]=[i];for(j=0;j<=n;j++)d[0][j]=j;
+  for(i=1;i<=m;i++)for(j=1;j<=n;j++){var c=a.charAt(i-1)===b.charAt(j-1)?0:1;
+    d[i][j]=Math.min(d[i-1][j]+1,d[i][j-1]+1,d[i-1][j-1]+c);}
+  return d[m][n];}
+function fuzzyKey(w){
+  var p=phon(w); if(p.length<4)return null;
+  var lim=p.length>=6?2:1;                 // palabras largas: tolera hasta 2 errores
+  var best=null,bd=lim+1;
+  for(var k in PHON){ if(Math.abs(k.length-p.length)>lim)continue;
+    var dd=lev(p,k); if(dd<bd){bd=dd;best=PHON[k];} }
+  return bd<=lim?best:null;
+}
+/* vocabulario para la gramática de Vosk: solo palabras del banco + relleno */
+var GRAMMAR=(function(){var ws={},k;
+  for(k in BANK)ws[k]=1; for(k in SYN)ws[k]=1;
+  ['veo','un','una','el','la','los','las','es'].forEach(function(w){ws[w]=1;});
+  var list=Object.keys(ws); list.push('[unk]'); return JSON.stringify(list);
+})();
 /* primera palabra de la frase que EXISTE en el banco (objeto/animal/cosa) */
 function pickObject(text){
   if(!text)return null;
-  var ws=text.toLowerCase().split(/\s+/).map(clean);
-  for(var i=0;i<ws.length;i++){ if(ws[i]&&lookup(ws[i])) return ws[i]; }
-  return extractObject(text);   // fallback (probablemente "no encontrado")
+  var ws=text.split(/\s+/),i,c;
+  // 1) exacto / seseo / plural en palabras de contenido (saltando "veo","una"...)
+  for(i=0;i<ws.length;i++){ c=clean(ws[i]);
+    if(!c||STOP.indexOf(c)!==-1)continue;
+    if(BANK[c])return c;
+    if(SYN[c]&&BANK[SYN[c]])return SYN[c];
+    var p=phon(ws[i]); if(PHON[p])return PHON[p];
+  }
+  // 2) red de seguridad: tolera 1 error solo en palabras largas de contenido
+  for(i=0;i<ws.length;i++){ c=clean(ws[i]);
+    if(!c||c.length<4||STOP.indexOf(c)!==-1)continue;
+    var k=fuzzyKey(ws[i]); if(k)return k;
+  }
+  return null;   // nada en el banco -> avisa (parpadea el punto), no inventa
 }
+window.__pickObject=pickObject;   // para pruebas
 window.__extractObject=extractObject;
 
 /* ===================== Lienzo + pincel Instagram ===================== */
@@ -803,7 +848,8 @@ function startMic(){
     micStream=stream;
     if(!micCtx)micCtx=new (window.AudioContext||window.webkitAudioContext)();
     return (micCtx.state==='suspended'?micCtx.resume():Promise.resolve()).then(function(){
-      voskRec=new voskModel.KaldiRecognizer(micCtx.sampleRate);
+      try{ voskRec=new voskModel.KaldiRecognizer(micCtx.sampleRate, GRAMMAR); }  // restringe al vocabulario del banco
+      catch(_){ voskRec=new voskModel.KaldiRecognizer(micCtx.sampleRate); }       // si falla, reconocimiento libre
       voskRec.on('result',onVoskResult);
       voskRec.on('partialresult',onVoskPartial);
       micSrc=micCtx.createMediaStreamSource(micStream);
