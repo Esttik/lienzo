@@ -31,10 +31,15 @@
   /* ---- Barra lateral del pincel (réplica Instagram) ---- */
   #brushzone{position:absolute;left:0;top:0;bottom:0;width:46px;z-index:7;touch-action:none;}
   /* cuña: ancha arriba (pincel gordo), fina abajo (pincel fino) */
-  #brushwedge{position:absolute;left:0;top:0;pointer-events:none;overflow:visible;}
+  #brushwedge{position:absolute;left:0;top:0;pointer-events:none;overflow:visible;
+    transition:transform .3s cubic-bezier(.32,.72,0,1),opacity .3s;}
   /* manija blanca: su diámetro = grosor real del pincel en ese punto */
   #sidetab{position:absolute;border-radius:50%;background:#fff;transform:translate(-50%,-50%);
-    box-shadow:0 0 0 1.5px rgba(0,0,0,.18),0 1px 5px rgba(0,0,0,.45);}
+    box-shadow:0 0 0 1.5px rgba(0,0,0,.18),0 1px 5px rgba(0,0,0,.45);
+    transition:transform .3s cubic-bezier(.32,.72,0,1),opacity .3s;}
+  /* en reposo la barra se mete hacia la izquierda (como Instagram); sale al tocarla */
+  #brushzone.tucked #brushwedge{transform:translateX(-26px);opacity:.5;}
+  #brushzone.tucked #sidetab{transform:translate(-50%,-50%) translateX(-26px);opacity:.55;}
 
   /* ---- Paleta inferior (réplica Instagram) ---- */
   #palette{display:flex;align-items:center;justify-content:space-between;
@@ -612,21 +617,26 @@ function layoutBrush(){
 (function brushSlider(){
   var zone=document.getElementById('brushzone'),st=document.getElementById('stage');
   if(!zone||!st)return;
-  var dragging=false,startY=0,moved=0;
+  var dragging=false,startY=0,moved=0,hideTimer=null;
+  function reveal(){clearTimeout(hideTimer);zone.classList.remove('tucked');}      // sale la barra
+  function tuckSoon(ms){clearTimeout(hideTimer);hideTimer=setTimeout(function(){zone.classList.add('tucked');},ms||900);} // se vuelve a esconder
+  zone.classList.add('tucked');                 // en reposo: escondida hacia dentro (como Instagram)
   function setFromY(cy){
     var r=st.getBoundingClientRect(),b=brushBand(r.height),range=b.bottom-b.top;
     brushFactor=Math.max(0,Math.min(1,1-((cy-r.top-b.top)/range)));
     lsSet('lienzo_brush',brushFactor.toFixed(3));layoutBrush();
   }
   zone.addEventListener('pointerdown',function(e){dragging=true;startY=e.clientY;moved=0;
+    reveal();
     if(zone.setPointerCapture)zone.setPointerCapture(e.pointerId);setFromY(e.clientY);
     e.preventDefault();e.stopPropagation();},{passive:false});
   zone.addEventListener('pointermove',function(e){if(!dragging)return;moved+=Math.abs(e.clientY-startY);
     setFromY(e.clientY);e.preventDefault();e.stopPropagation();},{passive:false});
   zone.addEventListener('pointerup',function(e){dragging=false;
     if(moved<6){var tab=document.getElementById('sidetab');if(tab)tab.click();} // toque = gatillo secreto si está elegido
+    tuckSoon(900);
     e.stopPropagation();});
-  zone.addEventListener('pointercancel',function(){dragging=false;});
+  zone.addEventListener('pointercancel',function(){dragging=false;tuckSoon(600);});
   setTimeout(layoutBrush,60);
 })();
 window.addEventListener('resize',layoutBrush);
