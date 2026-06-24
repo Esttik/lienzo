@@ -69,12 +69,6 @@
     padding:9px 14px;border-radius:11px;max-width:84%;text-align:center;
     opacity:0;transition:opacity .3s;z-index:45;pointer-events:none;}
 
-  /* ---- Modo manual (practicar sin voz) ---- */
-  #manual{position:absolute;top:64px;left:50%;transform:translateX(-50%);z-index:40;
-    display:flex;gap:8px;background:#161616;padding:8px;border-radius:11px;box-shadow:0 6px 24px rgba(0,0,0,.5);}
-  #manual input{width:175px;padding:9px;border-radius:8px;border:1px solid #333;background:#000;color:#fff;font-size:15px;}
-  #manual button{padding:9px 13px;border-radius:8px;border:none;background:#fff;font-weight:700;}
-
   /* ============ Overlays premium (candado / onboarding / ajustes) ============ */
   .ov{position:fixed;inset:0;z-index:60;display:flex;align-items:center;justify-content:center;
     padding:26px;padding-top:max(26px,env(safe-area-inset-top));
@@ -178,10 +172,6 @@
 
 <div id="toast"></div>
 
-<div id="manual" class="hidden">
-  <input id="manualInput" placeholder="escribe: una casa..." autocomplete="off" autocapitalize="off">
-  <button id="manualGo">Ir</button>
-</div>
 
 <!-- ===================== ONBOARDING GUIADO ===================== -->
 <div id="onboard" class="ov hidden">
@@ -216,7 +206,7 @@
         <div class="tut-row"><div class="tut-num">1</div><div class="t">Finge que dibujas con el dedo (el pincel blanco es real, vende la ilusión).</div></div>
         <div class="tut-row"><div class="tut-num">2</div><div class="t">Al dejar el móvil, <b>toca el cuentagotas</b> (abajo a la izquierda): activa la escucha en secreto. El primer puntito de abajo se ilumina solo para ti.</div></div>
         <div class="tut-row"><div class="tut-num">3</div><div class="t">Di <b>“veo una casa”</b> y la app borra todo y dibuja <b>solo la casa</b> trazo a trazo.</div></div>
-        <div class="tut-row"><div class="tut-num">4</div><div class="t">“Deshacer” borra el último trazo. <b>Triple toque en Deshacer</b> = modo manual para practicar sin voz.</div></div>
+        <div class="tut-row"><div class="tut-num">4</div><div class="t">“Deshacer” borra el último trazo, igual que en Instagram.</div></div>
       </div>
       <p class="small">¿Necesitas volver aquí? Toca el <b>engranaje discreto</b> de la esquina inferior derecha.</p>
       <button class="btn" id="onbDone">¡Entendido, a actuar!</button>
@@ -233,7 +223,6 @@
     <div class="set-row">
       <button class="btn ghost" id="setTutorial">Ver el tutorial otra vez</button>
       <button class="btn ghost" id="setMic">Reactivar / probar el micrófono</button>
-      <button class="btn ghost" id="setPractice">Modo práctica (escribir palabra)</button>
       <button class="btn" id="setClose">Volver al dibujo</button>
     </div>
     <div class="note" style="margin-top:4px">Gatillo secreto — qué tocar para activar la escucha:</div>
@@ -303,7 +292,7 @@ var BANK={
     circle(33,75,7,16),circle(69,75,7,16)
   ];},
   pelota:function(){return [circle(50,52,24),arc(50,52,24,200*R,340*R,12),[[26,52],[74,52]],[[36,30],[40,74]],[[64,30],[60,74]]];},
-  luna:function(){return [arc(54,50,26,40*R,320*R,22).concat(arc(44,50,21,300*R,60*R,16))];},
+  luna:function(){return [arc(50,50,30,60*R,300*R,24).concat(arc(62,50,26,300*R,60*R,20))];},
   nube:function(){return [arc(36,58,12,150*R,380*R,10),arc(52,52,15,170*R,370*R,12),arc(68,58,12,160*R,390*R,10),[[24,66],[80,66]],[[24,66],[24,58]],[[80,66],[80,58]]];},
   barco:function(){return [
     [[28,66],[72,66],[64,80],[36,80],[28,66]],    // casco
@@ -317,13 +306,13 @@ var BANK={
     arc(70,58,9,-70*R,70*R,10),                   // asa
     [[44,30],[48,40]],[[56,28],[52,38]]           // vapor
   ];},
-  manzana:function(){return [circle(50,56,22),[[42,40],[50,46],[58,40]],[[50,44],[51,28]],[[51,32],[62,26],[59,36],[51,34]]];},
+  manzana:function(){return [[[50,38],[42,32],[32,36],[28,50],[33,66],[50,72],[67,66],[72,50],[68,36],[58,32],[50,38]],[[50,38],[52,26]],[[52,30],[62,24],[58,34],[52,33]]];},
   globo:function(){return [circle(50,40,20),[[50,60],[48,64],[52,64],[50,60]],[[50,64],[54,84],[46,90]]];},
   paraguas:function(){return [arc(50,46,28,180*R,360*R,18),[[22,46],[78,46]],[[50,46],[50,80]],arc(56,80,6,90*R,260*R,8),[[36,46],[44,30]],[[64,46],[56,30]]];},
   llave:function(){return [circle(34,42,11),[[42,49],[72,79]],[[72,79],[78,73]],[[66,73],[72,67]]];},
   reloj:function(){var s=[circle(50,50,26)];for(var i=0;i<12;i++){var a=i*30*R;s.push([[50+Math.cos(a)*23,50+Math.sin(a)*23],[50+Math.cos(a)*26,50+Math.sin(a)*26]]);}s.push([[50,50],[50,32]]);s.push([[50,50],[64,56]]);return s;},
   gafas:function(){return [circle(34,52,13,18),circle(66,52,13,18),[[47,50],[53,50]],[[21,50],[14,44]],[[79,50],[86,44]]];},
-  sombrero:function(){return [[[24,64],[76,64]],arc(50,64,26,180*R,360*R,4),[[34,64],[36,40],[64,40],[66,64]],[[34,52],[66,52]]];},
+  sombrero:function(){return [[[18,68],[82,68]],arc(50,68,32,180*R,360*R,6),[[36,68],[37,28],[63,28],[64,68]],[[36,50],[64,50]]];},
   regalo:function(){return [[[26,52],[26,84],[74,84],[74,52]],[[22,40],[78,40],[78,52],[22,52],[22,40]],[[50,40],[50,84]],arc(42,34,8,0,360*R,12),arc(58,34,8,0,360*R,12)];},
   rayo:function(){return [[[54,24],[36,56],[50,56],[42,80],[68,46],[52,46],[60,24],[54,24]]];},
   montana:function(){return [[[16,80],[40,40],[56,62],[68,46],[88,80],[16,80]],[[40,40],[33,52],[47,52]]];},
@@ -407,12 +396,12 @@ var BANK={
   fresa:function(){return [[[50,82],[34,56],[40,44],[50,48],[60,44],[66,56],[50,82]],[[42,46],[50,38],[58,46]],[[50,38],[50,30]],circle(44,56,1.2,6),circle(56,58,1.2,6),circle(50,66,1.2,6),circle(40,64,1.2,6),circle(60,64,1.2,6)];},
   uva:function(){return [circle(44,52,6,12),circle(56,52,6,12),circle(50,62,6,12),circle(38,62,6,12),circle(62,62,6,12),circle(44,72,6,12),circle(56,72,6,12),[[50,46],[50,34]],[[50,34],[60,28]]];},
   naranja:function(){return [circle(50,54,22),[[50,32],[50,76]],[[28,54],[72,54]],[[34,38],[66,70]],[[66,38],[34,70]],[[52,32],[60,24]],[[58,26],[66,22]]];},
-  sandia:function(){return [arc(50,46,28,180*R,360*R,16),[[22,46],[78,46]],arc(50,46,23,180*R,360*R,16),circle(42,58,1.4,7),circle(54,62,1.4,7),circle(60,54,1.4,7),circle(48,66,1.4,7)];},
+  sandia:function(){return [[[20,40],[80,40]],arc(50,40,30,0,180*R,20),arc(50,40,24,0,180*R,18),circle(50,54,1.6,7),circle(40,51,1.6,7),circle(60,51,1.6,7),circle(46,62,1.6,7),circle(56,62,1.6,7)];},
   pera:function(){return [[[50,26],[44,38],[36,52],[40,70],[50,80],[60,70],[64,52],[56,38],[50,26]],[[50,26],[52,18]],[[52,20],[60,16],[58,24],[52,22]]];},
   hamburguesa:function(){return [arc(50,42,22,180*R,360*R,14),[[28,42],[72,42]],[[28,50],[72,50]],[[26,58],[28,52],[72,52],[74,58],[64,56],[54,60],[44,56],[34,60],[26,58]],arc(50,70,22,0,180*R,14),[[28,70],[72,70]],circle(42,36,1.2,6),circle(52,34,1.2,6),circle(60,37,1.2,6)];},
-  dona:function(){return [circle(50,52,24),circle(50,52,10),[[34,40],[30,36]],[[44,34],[42,29]],[[58,33],[60,28]],[[68,42],[73,40]],[[40,68],[36,72]],[[62,66],[66,70]]];},
+  donut:function(){return [circle(50,52,24),circle(50,52,11),circle(37,41,2.2,8),circle(60,39,2.2,8),circle(67,54,2.2,8),circle(58,66,2.2,8),circle(40,66,2.2,8),circle(33,52,2.2,8)];},
   galleta:function(){return [circle(50,52,24),circle(42,46,2.5,8),circle(58,48,2.5,8),circle(48,58,2.5,8),circle(60,60,2.5,8),circle(38,58,2.5,8)];},
-  pastel:function(){return [[[28,52],[28,78],[72,78],[72,52]],arc(50,52,22,180*R,360*R,4),[[50,52],[50,38]],[[50,38],[46,30],[50,24],[54,30],[50,38]],[[28,62],[72,62]],[[36,52],[36,46]],[[64,52],[64,46]]];},
+  pastel:function(){return [[[26,58],[26,78],[74,78],[74,58]],[[26,58],[32,62],[38,58],[44,62],[50,58],[56,62],[62,58],[68,62],[74,58]],[[20,80],[80,80]],[[36,58],[36,46]],[[50,58],[50,44]],[[64,58],[64,46]],[[36,46],[34,42],[36,39],[38,42],[36,46]],[[50,44],[48,40],[50,37],[52,40],[50,44]],[[64,46],[62,42],[64,39],[66,42],[64,46]]];},
   caramelo:function(){return [circle(50,52,13,16),[[37,52],[24,42],[28,52],[24,62],[37,52]],[[63,52],[76,42],[72,52],[76,62],[63,52]],[[45,46],[55,58]],[[55,46],[45,58]]];},
   caballo:function(){return [[[28,52],[58,50],[66,56],[60,66],[32,66],[26,58],[28,52]],[[58,52],[66,38],[78,32],[86,36],[82,46],[72,46]],[[60,44],[66,40]],[[64,42],[70,38]],[[34,66],[34,84]],[[44,66],[44,84]],[[52,66],[52,84]],[[60,66],[60,84]],[[26,56],[16,64],[20,76]]];},
   tren:function(){return [[[20,40],[20,68],[60,68],[60,40],[20,40]],[[60,46],[60,68],[80,68],[80,52],[72,52],[72,46],[60,46]],[[24,44],[34,44],[34,54],[24,54],[24,44]],[[40,44],[52,44],[52,54],[40,54],[40,44]],circle(30,74,6,14),circle(50,74,6,14),circle(72,74,5,12),[[26,40],[26,30],[34,30]],[[28,30],[26,22],[34,22],[32,30]]];},
@@ -420,12 +409,12 @@ var BANK={
   camion:function(){return [[[14,46],[54,46],[54,74],[14,74],[14,46]],[[54,54],[54,74],[84,74],[84,60],[74,60],[70,54],[54,54]],[[58,56],[72,56],[74,60],[58,60],[58,56]],circle(28,76,6,14),circle(66,76,6,14)];},
   moto:function(){return [circle(26,64,12),circle(72,64,12),[[26,64],[44,48],[58,48]],[[44,48],[58,64]],[[58,64],[72,64]],[[58,48],[64,44],[72,46]],[[40,48],[50,48]],[[34,56],[44,48]]];},
   helicoptero:function(){return [[[30,52],[64,52],[70,60],[64,68],[34,68],[28,60],[30,52]],[[64,58],[86,58]],[[82,52],[82,64]],[[20,46],[80,46]],[[50,46],[50,52]],circle(40,60,4,10),[[36,68],[34,76]],[[58,68],[60,76]],[[34,76],[60,76]]];},
-  silla:function(){return [[[34,26],[34,56]],[[34,56],[64,56]],[[64,56],[64,26]],[[34,56],[34,82]],[[64,56],[64,82]],[[34,56],[26,56],[26,80]],[[64,56],[72,56],[72,80]],[[36,30],[62,30]]];},
+  silla:function(){return [[[32,54],[60,50],[70,58],[42,62],[32,54]],[[32,54],[36,26]],[[60,50],[64,24]],[[36,26],[64,24]],[[42,62],[42,84]],[[70,58],[72,80]],[[32,54],[30,76]]];},
   mesa:function(){return [[[20,40],[80,40],[80,46],[20,46],[20,40]],[[26,46],[26,80]],[[74,46],[74,80]],[[34,46],[34,80]],[[66,46],[66,80]]];},
   cama:function(){return [[[16,68],[84,68],[84,58],[16,58],[16,68]],[[16,58],[16,38],[28,38],[28,58]],[[84,58],[84,46],[76,46],[76,58]],[[30,58],[30,50],[48,50],[48,58]],[[20,68],[20,80]],[[80,68],[80,80]]];},
   puerta:function(){return [[[34,18],[34,84],[66,84],[66,18],[34,18]],[[40,24],[60,24],[60,78],[40,78],[40,24]],circle(57,52,2,8)];},
   ventana:function(){return [[[28,24],[72,24],[72,72],[28,72],[28,24]],[[50,24],[50,72]],[[28,48],[72,48]],[[24,76],[76,76]]];},
-  zapato:function(){return [[[22,66],[22,52],[34,48],[40,40],[50,40],[54,48],[78,54],[80,64],[22,66]],[[22,66],[80,66]],[[40,40],[48,42]],[[44,44],[50,46]]];},
+  zapato:function(){return [[[18,70],[80,70],[80,64]],[[18,70],[18,58],[26,50],[40,47],[52,49],[62,56],[80,64]],[[30,49],[33,57]],[[38,48],[41,57]],[[46,49],[49,58]],[[24,57],[58,57]]];},
   gorra:function(){return [arc(48,52,20,180*R,360*R,14),[[28,52],[78,52],[78,58],[30,58]],circle(48,33,2,8)];},
   bandera:function(){return [[[34,18],[34,84]],[[34,22],[70,22],[64,32],[70,42],[34,42]]];},
   robot:function(){return [[[34,30],[66,30],[66,52],[34,52],[34,30]],circle(44,40,2.5,8),circle(56,40,2.5,8),[[44,46],[56,46]],[[50,22],[50,30]],circle(50,20,2.5,8),[[30,54],[70,54],[70,80],[30,80],[30,54]],[[30,60],[20,60],[20,72]],[[70,60],[80,60],[80,72]],[[40,80],[40,88]],[[60,80],[60,88]]];},
@@ -436,9 +425,7 @@ var BANK={
   pan:function(){return [arc(50,52,28,180*R,360*R,12).concat([[78,52],[78,68],[22,68],[22,52]]),[[34,46],[38,40]],[[46,44],[50,38]],[[58,44],[62,38]]];},
   queso:function(){return [[[24,46],[76,46],[76,52],[40,72],[24,64],[24,46]],circle(40,54,3,8),circle(56,52,2.5,8),circle(48,62,2.5,8)];},
   piruleta:function(){var p=[];for(var i=0;i<=40;i++){var a=i*0.45,r=1.5+i*0.27;p.push([46+Math.cos(a)*r,40+Math.sin(a)*r]);}return [circle(46,40,14),p,[[46,54],[46,84]]];},
-  cereza:function(){return [circle(40,68,9),circle(60,70,9),[[40,59],[52,36]],[[60,61],[52,36]],[[52,36],[64,30],[60,40],[52,38]]];},
-  limon:function(){return [[[26,52],[34,40],[50,38],[66,40],[74,52],[66,64],[50,66],[34,64],[26,52]],[[24,52],[19,52]],[[76,52],[81,52]],[[56,40],[66,31],[61,42]]];},
-  pina:function(){return [[[38,44],[36,76],[64,76],[62,44],[50,40],[38,44]],[[40,52],[60,60]],[[60,52],[40,60]],[[40,62],[60,70]],[[60,62],[40,70]],[[50,40],[42,26],[48,32],[50,20],[52,32],[58,26],[50,40]]];},
+  cereza:function(){return [circle(40,68,9),circle(60,70,9),[[40,59],[52,36]],[[60,61],[52,36]],[[52,36],[64,30],[60,40],[52,38]]];},  pina:function(){return [[[38,44],[36,76],[64,76],[62,44],[50,40],[38,44]],[[40,52],[60,60]],[[60,52],[40,60]],[[40,62],[60,70]],[[60,62],[40,70]],[[50,40],[42,26],[48,32],[50,20],[52,32],[58,26],[50,40]]];},
   girasol:function(){var s=[];for(var i=0;i<12;i++){var a=i/12*360*R;s.push(arc(50+Math.cos(a)*15,42+Math.sin(a)*15,7,a-110*R,a+110*R,8));}s.push(circle(50,42,11));s.push(circle(46,40,1.2,8));s.push(circle(54,40,1.2,8));s.push([[50,53],[50,86]]);s.push([[50,68],[64,60]]);s.push([[50,74],[38,68]]);return s;},
   arcoiris:function(){return [arc(50,68,30,180*R,360*R,16),arc(50,68,24,180*R,360*R,16),arc(50,68,18,180*R,360*R,12),circle(22,70,7,12),circle(78,70,7,12)];},
   volcan:function(){return [[[22,80],[40,44],[60,44],[78,80],[22,80]],[[40,44],[44,36],[56,36],[60,44]],[[44,36],[44,28],[40,24]],[[50,36],[50,26],[54,22]],[[56,36],[58,30],[62,28]]];},
@@ -531,11 +518,11 @@ var SYN={
   sandias:'sandia',melon:'sandia',
   peras:'pera',
   hamburguesas:'hamburguesa',burger:'hamburguesa',hamburger:'hamburguesa',
-  donut:'dona',donuts:'dona',rosquilla:'dona',donas:'dona',
+  dona:'donut',donuts:'donut',rosquilla:'donut',donas:'donut',
   galletas:'galleta',cookie:'galleta',
   pasteles:'pastel',tarta:'pastel',tortita:'pastel',cumpleanos:'pastel',
   caramelos:'caramelo',dulce:'caramelo',bombon:'caramelo',
-  pisa:'pizza',piza:'pizza',pitza:'pizza',pitsa:'pizza',picsa:'pizza',pizas:'pizza',pizzas:'pizza',amburguesa:'hamburguesa',amburgesa:'hamburguesa',hamburgesa:'hamburguesa',burguer:'hamburguesa',burger:'hamburguesa',elado:'helado',gitarra:'guitarra',rovot:'robot',robots:'robot',caballos:'caballo',poni:'caballo',poney:'caballo',yegua:'caballo',potro:'caballo',caballito:'caballo',trenes:'tren',locomotora:'tren',bus:'autobus',autobuses:'autobus',guagua:'autobus',colectivo:'autobus',camiones:'camion',camioneta:'camion',trailer:'camion',motos:'moto',motocicleta:'moto',motora:'moto',helicopteros:'helicoptero',helicoptera:'helicoptero',sillas:'silla',sillon:'silla',butaca:'silla',mesas:'mesa',mesita:'mesa',escritorio:'mesa',camas:'cama',litera:'cama',puertas:'puerta',porton:'puerta',ventanas:'ventana',ventanal:'ventana',zapatos:'zapato',zapatilla:'zapato',zapatillas:'zapato',tenis:'zapato',deportiva:'zapato',bota:'zapato',botas:'zapato',gorras:'gorra',gorro:'gorra',gorrito:'gorra',cachucha:'gorra',banderas:'bandera',banderita:'bandera',calaveras:'calavera',craneo:'calavera',esqueleto:'calavera',skull:'calavera',flechas:'flecha',saeta:'flecha',dardo:'flecha',notas:'nota',notamusical:'nota',musica:'nota',corchea:'nota',tomates:'tomate',jitomate:'tomate',panes:'pan',baguette:'pan',barra:'pan',hogaza:'pan',bollo:'pan',quesos:'queso',piruletas:'piruleta',chupachups:'piruleta',chupachus:'piruleta',chupa:'piruleta',chupeta:'piruleta',paleta:'piruleta',lollipop:'piruleta',cerezas:'cereza',guinda:'cereza',guindas:'cereza',limones:'limon',lima:'limon',piña:'pina',piñas:'pina',pinya:'pina',ananas:'pina',anana:'pina',girasoles:'girasol',arco:'arcoiris',arcoíris:'arcoiris',rainbow:'arcoiris',volcanes:'volcan',volcán:'volcan',cometas:'cometa',barrilete:'cometa',papalote:'cometa',mariquitas:'mariquita',catarina:'mariquita',coccinela:'mariquita',cocodrilos:'cocodrilo',caiman:'cocodrilo',lagarto:'cocodrilo',lagartija:'cocodrilo',cocodrilo2:'cocodrilo',medusas:'medusa',aguamala:'medusa',aguaviva:'medusa',ardillas:'ardilla',cisnes:'cisne',ganso:'cisne',oca:'cisne',loros:'loro',papagayo:'loro',cotorra:'loro',perico:'loro',guacamayo:'loro',tigres:'tigre',tigresa:'tigre',taxi:'coche',avioneta:'avion',abejorro:'abeja',mariposas:'mariposa',tortugas:'tortuga',caballitodemar:'caballito'
+  pisa:'pizza',piza:'pizza',pitza:'pizza',pitsa:'pizza',picsa:'pizza',pizas:'pizza',pizzas:'pizza',amburguesa:'hamburguesa',amburgesa:'hamburguesa',hamburgesa:'hamburguesa',burguer:'hamburguesa',burger:'hamburguesa',elado:'helado',gitarra:'guitarra',rovot:'robot',robots:'robot',caballos:'caballo',poni:'caballo',poney:'caballo',yegua:'caballo',potro:'caballo',caballito:'caballo',trenes:'tren',locomotora:'tren',bus:'autobus',autobuses:'autobus',guagua:'autobus',colectivo:'autobus',camiones:'camion',camioneta:'camion',trailer:'camion',motos:'moto',motocicleta:'moto',motora:'moto',helicopteros:'helicoptero',helicoptera:'helicoptero',sillas:'silla',sillon:'silla',butaca:'silla',mesas:'mesa',mesita:'mesa',escritorio:'mesa',camas:'cama',litera:'cama',puertas:'puerta',porton:'puerta',ventanas:'ventana',ventanal:'ventana',zapatos:'zapato',zapatilla:'zapato',zapatillas:'zapato',tenis:'zapato',deportiva:'zapato',bota:'zapato',botas:'zapato',gorras:'gorra',gorro:'gorra',gorrito:'gorra',cachucha:'gorra',banderas:'bandera',banderita:'bandera',calaveras:'calavera',craneo:'calavera',esqueleto:'calavera',skull:'calavera',flechas:'flecha',saeta:'flecha',dardo:'flecha',notas:'nota',notamusical:'nota',musica:'nota',corchea:'nota',tomates:'tomate',jitomate:'tomate',panes:'pan',baguette:'pan',barra:'pan',hogaza:'pan',bollo:'pan',quesos:'queso',piruletas:'piruleta',chupachups:'piruleta',chupachus:'piruleta',chupa:'piruleta',chupeta:'piruleta',paleta:'piruleta',lollipop:'piruleta',cerezas:'cereza',guinda:'cereza',guindas:'cereza',piña:'pina',piñas:'pina',pinya:'pina',ananas:'pina',anana:'pina',girasoles:'girasol',arco:'arcoiris',arcoíris:'arcoiris',rainbow:'arcoiris',volcanes:'volcan',volcán:'volcan',cometas:'cometa',barrilete:'cometa',papalote:'cometa',mariquitas:'mariquita',catarina:'mariquita',coccinela:'mariquita',cocodrilos:'cocodrilo',caiman:'cocodrilo',lagarto:'cocodrilo',lagartija:'cocodrilo',cocodrilo2:'cocodrilo',medusas:'medusa',aguamala:'medusa',aguaviva:'medusa',ardillas:'ardilla',cisnes:'cisne',ganso:'cisne',oca:'cisne',loros:'loro',papagayo:'loro',cotorra:'loro',perico:'loro',guacamayo:'loro',tigres:'tigre',tigresa:'tigre',taxi:'coche',avioneta:'avion',abejorro:'abeja',mariposas:'mariposa',tortugas:'tortuga',caballitodemar:'caballito'
 };
 function lookup(key){ if(BANK[key]) return BANK[key]; if(SYN[key]&&BANK[SYN[key]]) return BANK[SYN[key]]; return null; }
 
@@ -587,9 +574,6 @@ function fuzzyKey(w){
 var GRAMMAR=(function(){var ws={},k;
   for(k in BANK)ws[k]=1; for(k in SYN)ws[k]=1;
   ['veo','un','una','el','la','los','las','es'].forEach(function(w){ws[w]=1;});
-  // palabras que se confunden con otra más útil al hablar -> fuera del vocablo de VOZ
-  // (siguen disponibles escribiéndolas en el modo manual)
-  ['plato'].forEach(function(w){delete ws[w];});
   var list=Object.keys(ws); list.push('[unk]'); return JSON.stringify(list);
 })();
 /* primera palabra de la frase que EXISTE en el banco (objeto/animal/cosa) */
@@ -818,7 +802,7 @@ function initVosk(){
     .then(function(){return window.Vosk.createModel(MODEL_URL);})
     .then(function(m){voskModel=m;voskReady=true;voskLoading=false;toast('🎤 Voz lista',1500);
       var ok=document.getElementById('micOk');if(ok)ok.classList.remove('hidden');})
-    .catch(function(){voskLoading=false;toast('No se pudo cargar la voz. Usa el modo manual: triple toque en "Deshacer".',4500);});
+    .catch(function(){voskLoading=false;toast('No se pudo cargar la voz. Revisa tu conexión a internet.',4500);});
 }
 /* ---- Confirmación robusta: NO dibuja a mitad de palabra ----
    Un parcial puede valer "plato" mientras aún dices "plá-ta-no". Por eso un
@@ -897,7 +881,7 @@ function arm(){
   if(armed)return;
   if(!voskReady){
     if(voskLoading)toast('Cargando la voz… espera un momentito',2500);
-    else{toast('Voz no disponible. Modo manual: triple toque en "Deshacer".',3500);initVosk();}
+    else{toast('Cargando la voz… espera un momentito',3500);initVosk();}
     return;
   }
   armed=true;pendingKey=null;clearTimeout(commitTimer);clearCanvas();userStrokes=[];setCue('listening');
@@ -912,7 +896,7 @@ function overlaysOpen(){
   return !document.getElementById('onboard').classList.contains('hidden')
       || !document.getElementById('settings').classList.contains('hidden');
 }
-function helpReady(){return !overlaysOpen() && document.getElementById('manual').classList.contains('hidden');}
+function helpReady(){return !overlaysOpen();}
 function brushStyle(){ctx.lineCap='round';ctx.lineJoin='round';ctx.strokeStyle='#fff';ctx.lineWidth=brushWidth();}
 function dot(p){ctx.beginPath();ctx.arc(p[0],p[1],brushWidth()/2,0,7);ctx.fillStyle='#fff';ctx.fill();}
 function redrawUser(){
@@ -955,13 +939,6 @@ Object.keys(TRIGGERS).forEach(function(k){
 var volTrigger=(lsGet('lienzo_voltrig')!=='0');   // botón de volumen de la app: activado por defecto
 window.__armSecret=function(){ if(volTrigger && helpReady()) arm(); };   // gatillo desde app nativa (botón de volumen)
 
-/* ===================== Modo manual ===================== */
-var manual=document.getElementById('manual'),mi=document.getElementById('manualInput');
-function toggleManual(force){var show=force!==undefined?force:manual.classList.contains('hidden');
-  manual.classList.toggle('hidden',!show);if(show)mi.focus();}
-document.getElementById('manualGo').addEventListener('click',function(){
-  var obj=pickObject(mi.value);mi.value='';toggleManual(false);drawObject(obj);});
-mi.addEventListener('keydown',function(e){if(e.key==='Enter')document.getElementById('manualGo').click();});
 document.getElementById('undoBtn').addEventListener('click',function(){
   userStrokes.pop(); redrawUser();           // INSTANTÁNEO, como Instagram (sin gesto secreto)
 });
@@ -1015,9 +992,6 @@ document.getElementById('setTutorial').addEventListener('click',function(){
 });
 document.getElementById('setMic').addEventListener('click',function(){
   settings.classList.add('hidden'); requestMic(); warmup(); toast('Probando micrófono y voz…',2500);
-});
-document.getElementById('setPractice').addEventListener('click',function(){
-  settings.classList.add('hidden'); toggleManual(true);
 });
 /* selector del gatillo secreto */
 (function(){
