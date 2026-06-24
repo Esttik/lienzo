@@ -824,21 +824,35 @@ function initVosk(){
       var ok=document.getElementById('micOk');if(ok)ok.classList.remove('hidden');})
     .catch(function(){voskLoading=false;toast('No se pudo cargar la voz. Usa el modo manual: triple toque en "Deshacer".',4500);});
 }
-function onVoskResult(message){
+/* ---- Confirmación robusta: NO dibuja a mitad de palabra ----
+   Un parcial puede valer "plato" mientras aún dices "plá-ta-no". Por eso un
+   PARCIAL no dibuja al instante: guarda el candidato y espera a que la voz se
+   ESTABILICE (deje de cambiar ~600ms) o a que llegue el resultado FINAL.
+   Así "plato" queda superado por "platano" si sigues hablando. */
+var pendingKey=null,commitTimer=null;
+function commitDraw(obj){
+  if(!armed)return;
+  armed=false;clearTimeout(listenTimer);clearTimeout(commitTimer);pendingKey=null;
+  setCue('off');stopMic();drawObject(obj);
+}
+function onVoskResult(message){            // FINAL = autoritativo: dibuja ya
   if(!armed)return;
   var text=message&&message.result&&message.result.text;
   if(!text)return;
   var obj=pickObject(text);
-  if(obj&&lookup(obj)){armed=false;clearTimeout(listenTimer);setCue('off');stopMic();drawObject(obj);}
-  // si no es un objeto del banco, sigue escuchando hasta el tiempo límite
+  if(obj&&lookup(obj))commitDraw(obj);
+  // si no es del banco, sigue escuchando hasta el tiempo límite
 }
-/* resultado PARCIAL: detecta la palabra al vuelo, sin esperar a que termines de hablar */
-function onVoskPartial(message){
+function onVoskPartial(message){           // PARCIAL = espera a que se estabilice
   if(!armed)return;
   var text=message&&message.result&&message.result.partial;
   if(!text)return;
   var obj=pickObject(text);
-  if(obj&&lookup(obj)){armed=false;clearTimeout(listenTimer);setCue('off');stopMic();drawObject(obj);}
+  if(!obj||!lookup(obj))return;
+  if(obj===pendingKey)return;              // mismo candidato: deja correr su temporizador
+  pendingKey=obj;                          // candidato NUEVO: reinicia la espera (supera al anterior)
+  clearTimeout(commitTimer);
+  commitTimer=setTimeout(function(){ if(armed&&pendingKey===obj)commitDraw(obj); },600);
 }
 function startMic(){
   if(listening)return Promise.resolve(true);
@@ -881,10 +895,10 @@ function arm(){
     else{toast('Voz no disponible. Modo manual: triple toque en "Deshacer".',3500);initVosk();}
     return;
   }
-  armed=true;clearCanvas();userStrokes=[];setCue('listening');
+  armed=true;pendingKey=null;clearTimeout(commitTimer);clearCanvas();userStrokes=[];setCue('listening');
   startMic().then(function(ok){ if(!ok){armed=false;setCue('off');toast('No pude abrir el micrófono.',2500);} });
   clearTimeout(listenTimer);
-  listenTimer=setTimeout(function(){ if(armed){armed=false;setCue('off');stopMic();} },30000);
+  listenTimer=setTimeout(function(){ if(armed){armed=false;pendingKey=null;clearTimeout(commitTimer);setCue('off');stopMic();} },30000);
 }
 
 /* ===== Dibujo libre real (pincel blanco estilo Instagram) ===== */
