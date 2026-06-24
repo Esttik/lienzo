@@ -75,7 +75,7 @@
     padding-bottom:max(26px,calc(env(safe-area-inset-bottom) + 12px));
     background:radial-gradient(130% 110% at 50% -10%,#241a44 0%,#120f22 46%,#0a0a0a 100%);
     color:#fff;overflow-y:auto;}
-  .card{width:100%;max-width:430px;margin:auto;display:flex;flex-direction:column;gap:16px;}
+  .card{width:100%;max-width:430px;margin:auto;display:flex;flex-direction:column;gap:18px;}
   .logo{width:74px;height:74px;border-radius:21px;margin:0 auto 2px;
     background:linear-gradient(135deg,#a24bff,#ff2d8f 55%,#ffae3a);
     display:flex;align-items:center;justify-content:center;font-size:38px;
@@ -97,7 +97,7 @@
 
   /* onboarding pasos */
   .ob-step h2{font-size:22px;font-weight:800;text-align:center;}
-  .ob-step p{font-size:15px;line-height:1.55;color:#d9d2ee;text-align:center;}
+  .ob-step p{font-size:15px;line-height:1.72;color:#d9d2ee;text-align:center;margin:2px 0;}
   .ob-step .small{font-size:13px;color:#9a90ba;line-height:1.5;text-align:center;}
   .ok-tag{display:inline-block;margin:0 auto;padding:6px 13px;border-radius:999px;
     background:rgba(33,208,99,.16);color:#62e89a;font-size:13px;font-weight:700;}
@@ -180,9 +180,10 @@
     <div class="ob-step" data-step="1">
       <div class="logo">🎩</div>
       <div class="brand">Bienvenido<span class="sub">Tu mejor truco</span></div>
-      <p>Esta es tu réplica de la pantalla de dibujo de Instagram Stories. El espectador cree que es Instagram de verdad… y tú adivinas y <b>dibujas lo que él imagina</b>.</p>
-      <p class="small">Te guiamos en 30 segundos. Esto solo aparece la primera vez.</p>
-      <button class="btn" data-next>Empezar</button>
+      <p>Esta app simula el <b>lienzo de Instagram</b>.</p>
+      <p>Pides al espectador que piense en la primera palabra o cosa que se le venga a la cabeza y que la dibuje… y tú intentas <b>adivinarlo</b>.</p>
+      <p class="small">(Este tutorial solo aparece la primera vez)</p>
+      <button class="btn" data-next style="margin-top:14px">Empezar</button>
     </div>
 
     <div class="ob-step hidden" data-step="2">
