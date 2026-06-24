@@ -594,6 +594,9 @@ function fuzzyKey(w){
 var GRAMMAR=(function(){var ws={},k;
   for(k in BANK)ws[k]=1; for(k in SYN)ws[k]=1;
   ['veo','un','una','el','la','los','las','es'].forEach(function(w){ws[w]=1;});
+  // palabras que se confunden con otra más útil al hablar -> fuera del vocablo de VOZ
+  // (siguen disponibles escribiéndolas en el modo manual)
+  ['plato'].forEach(function(w){delete ws[w];});
   var list=Object.keys(ws); list.push('[unk]'); return JSON.stringify(list);
 })();
 /* primera palabra de la frase que EXISTE en el banco (objeto/animal/cosa) */
@@ -829,30 +832,39 @@ function initVosk(){
    PARCIAL no dibuja al instante: guarda el candidato y espera a que la voz se
    ESTABILICE (deje de cambiar ~600ms) o a que llegue el resultado FINAL.
    Así "plato" queda superado por "platano" si sigues hablando. */
+/* palabras "ambiguas": pueden ser el PRINCIPIO de otra más larga del banco
+   (p.ej. "plato"⊂"platano", "cara"⊂"caracol", "cama"⊂"camara", "pan"⊂"panda").
+   Para estas esperamos más, por si llega la palabra completa y la supera. */
+var AMBIG=(function(){var amb={},ks=[],k;for(k in BANK)ks.push(k);
+  function pf(a,b){var n=Math.min(a.length,b.length),i=0;while(i<n&&a.charAt(i)===b.charAt(i))i++;return i;}
+  for(var i=0;i<ks.length;i++){var pa=phon(ks[i]);
+    for(var j=0;j<ks.length;j++){ if(i===j)continue; var pb=phon(ks[j]);
+      if(pb.length>pa.length && pf(pa,pb)>=pa.length-1){amb[ks[i]]=1;break;} } }
+  return amb;})();
 var pendingKey=null,commitTimer=null;
 function commitDraw(obj){
   if(!armed)return;
   armed=false;clearTimeout(listenTimer);clearTimeout(commitTimer);pendingKey=null;
   setCue('off');stopMic();drawObject(obj);
 }
-function onVoskResult(message){            // FINAL = autoritativo: dibuja ya
+/* tanto PARCIAL como FINAL pasan por aquí: nunca dibuja a mitad de palabra */
+function consider(obj,isFinal){
+  if(!armed||!obj||!lookup(obj))return;
+  var wait = AMBIG[obj] ? 800 : (isFinal?0:450);   // ambigua: aguanta por si llega la palabra larga
+  if(wait<=0){commitDraw(obj);return;}
+  if(obj===pendingKey)return;                       // ya esperando este mismo candidato
+  pendingKey=obj;clearTimeout(commitTimer);
+  commitTimer=setTimeout(function(){ if(armed&&pendingKey===obj)commitDraw(obj); },wait);
+}
+function onVoskResult(message){            // FINAL
   if(!armed)return;
   var text=message&&message.result&&message.result.text;
-  if(!text)return;
-  var obj=pickObject(text);
-  if(obj&&lookup(obj))commitDraw(obj);
-  // si no es del banco, sigue escuchando hasta el tiempo límite
+  if(text)consider(pickObject(text),true);
 }
-function onVoskPartial(message){           // PARCIAL = espera a que se estabilice
+function onVoskPartial(message){           // PARCIAL
   if(!armed)return;
   var text=message&&message.result&&message.result.partial;
-  if(!text)return;
-  var obj=pickObject(text);
-  if(!obj||!lookup(obj))return;
-  if(obj===pendingKey)return;              // mismo candidato: deja correr su temporizador
-  pendingKey=obj;                          // candidato NUEVO: reinicia la espera (supera al anterior)
-  clearTimeout(commitTimer);
-  commitTimer=setTimeout(function(){ if(armed&&pendingKey===obj)commitDraw(obj); },600);
+  if(text)consider(pickObject(text),false);
 }
 function startMic(){
   if(listening)return Promise.resolve(true);
