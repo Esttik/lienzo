@@ -833,15 +833,20 @@ function consider(obj,isFinal){
   pendingKey=obj;clearTimeout(commitTimer);
   commitTimer=setTimeout(function(){ if(armed&&pendingKey===obj)commitDraw(obj); },wait);
 }
+var DEBUG=/[?&]debug/.test(location.search);   // abre con ?debug=1 para ver qué oye la voz
 function onVoskResult(message){            // FINAL
   if(!armed)return;
   var text=message&&message.result&&message.result.text;
-  if(text)consider(pickObject(text),true);
+  if(!text)return;
+  if(DEBUG)toast('FINAL oí: "'+text+'"  → '+(pickObject(text)||'(nada del banco)'),4500);
+  consider(pickObject(text),true);
 }
 function onVoskPartial(message){           // PARCIAL
   if(!armed)return;
   var text=message&&message.result&&message.result.partial;
-  if(text)consider(pickObject(text),false);
+  if(!text)return;
+  if(DEBUG)toast('oyendo: "'+text+'"',1500);
+  consider(pickObject(text),false);
 }
 function startMic(){
   if(listening)return Promise.resolve(true);
