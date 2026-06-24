@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Galería de garabatos — Lienzo</title>
+<style>
+  *{box-sizing:border-box}
+  body{margin:0;background:#0a0a0a;color:#eee;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    -webkit-text-size-adjust:100%;}
+  header{padding:14px 16px;text-align:center;position:sticky;top:0;z-index:3;
+    background:rgba(10,10,10,.92);backdrop-filter:blur(8px);border-bottom:1px solid #222;}
+  header h1{margin:0;font-size:16px;font-weight:800;letter-spacing:.2px}
+  header p{margin:6px 0 0;font-size:12px;color:#9a9a9a;line-height:1.4}
+  #count{color:#c79bff;font-weight:800}
+  #grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(104px,1fr));
+    gap:8px;padding:10px;padding-bottom:40px;}
+  .c{background:#151515;border:1px solid #262626;border-radius:14px;
+    display:flex;flex-direction:column;align-items:center;padding:9px 4px 7px;}
+  .c canvas{display:block}
+  .l{margin-top:6px;font-size:12.5px;color:#d6d6d6;text-align:center;word-break:break-word}
+  #err{padding:24px;color:#ff7a9c;text-align:center;font-size:14px;line-height:1.5}
+</style>
+</head>
+<body>
+<header>
+  <h1>🎩 Galería de garabatos — Lienzo</h1>
+  <p><span id="count">…</span> figuras · repásalas y dime el <b>nombre</b> de las que quieras corregir</p>
+</header>
+<div id="grid"></div>
+<div id="err"></div>
+<script>
+(async function(){
+  try{
+    var t = await fetch('index.html?cb=' + Date.now(), {cache:'no-store'}).then(function(r){return r.text();});
+    var code = t.slice(t.indexOf('function circle(cx,cy,r,seg)'), t.indexOf('var SYN='));
+    var BANK = (new Function(code + '; return BANK;'))();
+    var keys = Object.keys(BANK).sort();
+    document.getElementById('count').textContent = keys.length;
+    var grid = document.getElementById('grid');
+    var SZ = 150, PAD = 20, DPR = Math.min(window.devicePixelRatio || 1, 3);
+    keys.forEach(function(k){
+      var c = document.createElement('div'); c.className = 'c';
+      var cv = document.createElement('canvas');
+      cv.width = SZ*DPR; cv.height = SZ*DPR; cv.style.width = SZ+'px'; cv.style.height = SZ+'px';
+      var x = cv.getContext('2d'); x.scale(DPR, DPR);
+      var s; try { s = BANK[k](); } catch(e){ s = []; }
+      var mnx=1e9,mny=1e9,mxx=-1e9,mxy=-1e9;
+      s.forEach(function(o){o.forEach(function(p){if(p[0]<mnx)mnx=p[0];if(p[0]>mxx)mxx=p[0];if(p[1]<mny)mny=p[1];if(p[1]>mxy)mxy=p[1];});});
+      var bw=mxx-mnx||1, bh=mxy-mny||1, sc=(SZ-2*PAD)/Math.max(bw,bh);
+      var ox=(SZ-bw*sc)/2-mnx*sc, oy=(SZ-bh*sc)/2-mny*sc;
+      x.strokeStyle='#fff'; x.lineWidth=3.4; x.lineCap='round'; x.lineJoin='round';
+      s.forEach(function(o){
+        if(o.length<2){ if(o.length===1){x.beginPath();x.arc(ox+o[0][0]*sc,oy+o[0][1]*sc,1.7,0,7);x.fillStyle='#fff';x.fill();} return; }
+        x.beginPath(); x.moveTo(ox+o[0][0]*sc, oy+o[0][1]*sc);
+        for(var i=1;i<o.length;i++) x.lineTo(ox+o[i][0]*sc, oy+o[i][1]*sc);
+        x.stroke();
+      });
+      c.appendChild(cv);
+      var l = document.createElement('div'); l.className='l'; l.textContent=k; c.appendChild(l);
+      grid.appendChild(c);
+    });
+  }catch(e){
+    document.getElementById('err').textContent = 'No se pudo cargar el banco: ' + e.message;
+  }
+})();
+</script>
+</body>
+</html>
