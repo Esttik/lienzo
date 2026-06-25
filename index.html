@@ -222,9 +222,9 @@
       <button class="btn ghost" id="setMic">Reactivar / probar el micrófono</button>
       <button class="btn" id="setClose">Volver al dibujo</button>
     </div>
-    <div class="note" style="margin-top:4px">Gatillo secreto — qué tocar para activar la escucha:</div>
+    <div class="note" style="margin-top:4px">El <b>cuentagotas</b> arma siempre la rutina del <b>número</b>. Elige qué toque arma la <b>palabra</b>:</div>
     <div class="set-row" id="trigRow">
-      <button class="btn ghost" data-trig="eyedrop">Cuentagotas (por defecto)</button>
+      <button class="btn ghost" data-trig="blanco">Color blanco (por defecto)</button>
       <button class="btn ghost" data-trig="sidetab">Pestaña lateral izquierda</button>
       <button class="btn ghost" data-trig="listo">Botón "Listo" (arriba)</button>
       <button class="btn ghost" data-trig="dots">Puntitos de abajo</button>
@@ -767,6 +767,57 @@ function drawObject(object){
   else { setCue('off'); notFound(); }            // no está en el banco -> avisa, no inventa
 }
 
+/* ===================== Rutina de NÚMERO (1–100), dibujado a mano ===================== */
+/* Cifras 0–9 como trazos (caja local ~x:2..22, y:2..50). fitAndDraw las escala,
+   centra y les da el mismo aire "hecho a mano" que los garabatos. */
+var DIGITS={
+ '0':[[[12,3],[5,9],[3,26],[5,43],[12,49],[19,43],[21,26],[19,9],[12,3]]],
+ '1':[[[6,12],[12,5],[12,49]],[[5,49],[19,49]]],
+ '2':[[[4,13],[10,4],[18,5],[21,13],[18,24],[5,44],[6,49],[21,49]]],
+ '3':[[[4,8],[12,4],[20,9],[16,23],[10,24],[19,28],[21,40],[12,49],[4,45]]],
+ '4':[[[17,4],[4,33],[23,33]],[[17,4],[17,49]]],
+ '5':[[[20,5],[7,5],[5,24],[15,21],[22,33],[16,48],[5,45]]],
+ '6':[[[20,7],[10,5],[4,24],[4,40],[11,49],[20,45],[22,35],[14,29],[5,33]]],
+ '7':[[[4,5],[22,5],[9,49]],[[9,28],[18,28]]],
+ '8':[[[12,4],[5,9],[6,18],[12,25],[18,18],[19,9],[12,4]],[[12,25],[4,33],[5,44],[12,50],[19,44],[20,33],[12,25]]],
+ '9':[[[20,26],[12,29],[5,23],[6,11],[14,4],[21,10],[22,27],[16,44],[6,49]]]
+};
+var DIGIT_W=30;
+function buildNumber(n){
+  var s=String(n),out=[];
+  for(var i=0;i<s.length;i++){
+    var g=DIGITS[s.charAt(i)]; if(!g)continue;
+    var ox=i*DIGIT_W;
+    g.forEach(function(st){ out.push(st.map(function(p){return [p[0]+ox,p[1]];})); });
+  }
+  return out;
+}
+function drawNumber(n){
+  if(n==null||isNaN(n)){setCue('off');return;}
+  setCue('off'); fitAndDraw(buildNumber(n));
+}
+/* Parser de números en español 1–100 ("cuarenta y siete" -> 47) */
+var NUM_U={cero:0,uno:1,dos:2,tres:3,cuatro:4,cinco:5,seis:6,siete:7,ocho:8,nueve:9,diez:10,once:11,doce:12,trece:13,catorce:14,quince:15,dieciseis:16,diecisiete:17,dieciocho:18,diecinueve:19,veinte:20,veintiuno:21,veintiun:21,veintiuna:21,veintidos:22,veintitres:23,veinticuatro:24,veinticinco:25,veintiseis:26,veintisiete:27,veintiocho:28,veintinueve:29,cien:100,ciento:100};
+var NUM_T={treinta:30,cuarenta:40,cincuenta:50,sesenta:60,setenta:70,ochenta:80,noventa:90};
+function parseNumberES(text){
+  if(!text)return null;
+  var t=clean(text);
+  var dm=t.match(/\d{1,3}/);
+  if(dm){var d=parseInt(dm[0],10); if(d>=1&&d<=100)return d;}
+  var w=t.split(/\s+/),total=null;
+  for(var i=0;i<w.length;i++){
+    if(NUM_U[w[i]]!=null){ total=(total||0)+NUM_U[w[i]]; }
+    else if(NUM_T[w[i]]!=null){
+      var b=NUM_T[w[i]];
+      if(w[i+1]==='y'&&NUM_U[w[i+2]]!=null&&NUM_U[w[i+2]]<10){ b+=NUM_U[w[i+2]]; i+=2; }
+      total=(total||0)+b;
+    }
+  }
+  if(total!=null&&total>=1&&total<=100)return total;
+  return null;
+}
+window.__drawNumber=drawNumber; window.__parseNumberES=parseNumberES;   // pruebas
+
 /* ===================== Indicador secreto (primer punto) ===================== */
 var dot0=document.querySelector('#dots .d');
 function setCue(state){
@@ -815,35 +866,46 @@ var AMBIG=(function(){var amb={},ks=[],k;for(k in BANK)ks.push(k);
     for(var j=0;j<ks.length;j++){ if(i===j)continue; var pb=phon(ks[j]);
       if(pb.length>pa.length && pf(pa,pb)>=pa.length-1){amb[ks[i]]=1;break;} } }
   return amb;})();
-var pendingKey=null,commitTimer=null;
-function commitDraw(obj){
+var pendingKey=null,commitTimer=null,listenMode='word';   // 'word' = palabra/objeto · 'number' = número
+function commitDraw(tok){
   if(!armed)return;
   armed=false;clearTimeout(listenTimer);clearTimeout(commitTimer);pendingKey=null;
-  setCue('off');stopMic();drawObject(obj);
+  setCue('off');stopMic();
+  if(tok.charAt(0)==='#') drawNumber(parseInt(tok.slice(1),10));   // rutina de NÚMERO
+  else drawObject(tok);                                            // rutina de PALABRA
 }
-/* tanto PARCIAL como FINAL pasan por aquí: nunca dibuja a mitad de palabra */
-function consider(obj,isFinal){
-  if(!armed||!obj||!lookup(obj))return;
-  var wait = AMBIG[obj] ? 800 : (isFinal?0:450);   // ambigua: aguanta por si llega la palabra larga
-  if(wait<=0){commitDraw(obj);return;}
-  if(obj===pendingKey)return;                       // ya esperando este mismo candidato
-  pendingKey=obj;clearTimeout(commitTimer);
-  commitTimer=setTimeout(function(){ if(armed&&pendingKey===obj)commitDraw(obj); },wait);
+/* PARCIAL y FINAL pasan por aquí: nunca dibuja a mitad de palabra/número */
+function consider(tok,isFinal,ambiguous){
+  if(!armed||!tok)return;
+  var wait = ambiguous ? 800 : (isFinal?0:450);     // ambiguo: aguanta por si llega lo más largo
+  if(wait<=0){ pendingKey=tok; commitDraw(tok); return; }
+  if(tok===pendingKey)return;                       // ya esperando este mismo candidato
+  pendingKey=tok;clearTimeout(commitTimer);
+  commitTimer=setTimeout(function(){ if(armed&&pendingKey===tok)commitDraw(tok); },wait);
+}
+function handleHeard(text,isFinal){
+  if(listenMode==='number'){
+    var n=parseNumberES(text);
+    if(n!=null) consider('#'+n, isFinal, (n%10===0&&n>=20&&n<100));   // "40" aguanta por si llega "47"
+  }else{
+    var obj=pickObject(text);
+    if(obj&&lookup(obj)) consider(obj, isFinal, !!AMBIG[obj]);
+  }
 }
 var DEBUG=/[?&]debug/.test(location.search);   // abre con ?debug=1 para ver qué oye la voz
 function onVoskResult(message){            // FINAL
   if(!armed)return;
   var text=message&&message.result&&message.result.text;
   if(!text)return;
-  if(DEBUG)toast('FINAL oí: "'+text+'"  → '+(pickObject(text)||'(nada del banco)'),4500);
-  consider(pickObject(text),true);
+  if(DEBUG)toast('FINAL oí: "'+text+'"',4500);
+  handleHeard(text,true);
 }
 function onVoskPartial(message){           // PARCIAL
   if(!armed)return;
   var text=message&&message.result&&message.result.partial;
   if(!text)return;
   if(DEBUG)toast('oyendo: "'+text+'"',1500);
-  consider(pickObject(text),false);
+  handleHeard(text,false);
 }
 function startMic(){
   if(listening)return Promise.resolve(true);
@@ -881,13 +943,14 @@ function requestMic(){   // pide el micro SOLO cuando el usuario lo decide (no a
   }
 }
 function warmup(){ initVosk(); }   // al abrir: solo carga el motor de voz, SIN pedir micro
-function arm(){
+function arm(mode){
   if(armed)return;
   if(!voskReady){
     if(voskLoading)toast('Cargando la voz… espera un momentito',2500);
     else{toast('Cargando la voz… espera un momentito',3500);initVosk();}
     return;
   }
+  listenMode=(mode==='number')?'number':'word';   // cuentagotas arma número; blanco arma palabra
   armed=true;pendingKey=null;clearTimeout(commitTimer);clearCanvas();userStrokes=[];setCue('listening');
   startMic().then(function(ok){ if(!ok){armed=false;setCue('off');toast('No pude abrir el micrófono.',2500);} });
   clearTimeout(listenTimer);
@@ -933,15 +996,17 @@ cv.addEventListener('pointerup',endDraw);
 cv.addEventListener('pointercancel',endDraw);
 
 /* ===== Gatillo secreto configurable (cuentagotas por defecto) ===== */
-var TRIGGERS={ eyedrop:'.eyedrop', sidetab:'#sidetab', listo:'#topbar .txt.bold', dots:'#dots' };
-var armTrigger=lsGet('lienzo_trigger')||'eyedrop';
+/* Cuentagotas = rutina de NÚMERO (siempre). Color (configurable) = rutina de PALABRA. */
+var TRIGGERS={ blanco:'.sw', sidetab:'#sidetab', listo:'#topbar .txt.bold', dots:'#dots' };
+var armTrigger=lsGet('lienzo_trigger')||'blanco';
 function setTrigger(k){ if(TRIGGERS[k]){ armTrigger=k; lsSet('lienzo_trigger',k); } }
 Object.keys(TRIGGERS).forEach(function(k){
   var el=document.querySelector(TRIGGERS[k]); if(!el)return;
-  el.addEventListener('click',function(){ if(armTrigger===k && helpReady()) arm(); });
+  el.addEventListener('click',function(){ if(armTrigger===k && helpReady()) arm('word'); });
 });
-var volTrigger=(lsGet('lienzo_voltrig')!=='0');   // botón de volumen de la app: activado por defecto
-window.__armSecret=function(){ if(volTrigger && helpReady()) arm(); };   // gatillo desde app nativa (botón de volumen)
+(function(){ var ed=document.querySelector('.eyedrop'); if(ed) ed.addEventListener('click',function(){ if(helpReady()) arm('number'); }); })();
+var volTrigger=(lsGet('lienzo_voltrig')!=='0');   // botón de volumen de la app: arma PALABRA
+window.__armSecret=function(){ if(volTrigger && helpReady()) arm('word'); };
 
 document.getElementById('undoBtn').addEventListener('click',function(){
   userStrokes.pop(); redrawUser();           // INSTANTÁNEO, como Instagram (sin gesto secreto)
