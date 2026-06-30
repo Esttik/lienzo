@@ -869,14 +869,13 @@ function drawPips(box,n){
   var L=x0+w*0.26,R=x1-w*0.26,MX=(x0+x1)/2,T=y0+h*0.26,B=y1-h*0.26,MY=(y0+y1)/2;
   var r=Math.max(2.5,Math.min(w,h)*0.09);
   var P={1:[[MX,MY]],2:[[L,T],[R,B]],3:[[L,T],[MX,MY],[R,B]],4:[[L,T],[R,T],[L,B],[R,B]],5:[[L,T],[R,T],[MX,MY],[L,B],[R,B]],6:[[L,T],[R,T],[L,MY],[R,MY],[L,B],[R,B]]};
-  var pts=P[n]; if(!pts)return;
-  ctx.fillStyle='#fff';
-  pts.forEach(function(p){ctx.beginPath();ctx.arc(p[0],p[1],r,0,7);ctx.fill();});
+  var pts=P[n]||[];
+  pts.forEach(function(p){ userStrokes.push([[p[0],p[1],r]]); });   // cada punto = un trazo deshacible (en orden)
 }
 function drawDice(nums){
-  if(anim){cancelAnimationFrame(anim);anim=null;}
   var regions=diceRegions();
   for(var i=0;i<Math.min(nums.length,regions.length);i++) drawPips(regions[i],nums[i]);
+  redrawUser();   // repinta cuadrados + puntos; Deshacer quita punto a punto, en orden
 }
 function diceConsider(ds,isFinal){
   var key=ds.join(',');
@@ -891,6 +890,8 @@ function commitDice(ds){
   setCue('off');stopMic();drawDice(ds);
 }
 window.__drawDice=drawDice; window.__parseDice=parseDice;   // pruebas
+var DICE_GRAMMAR=JSON.stringify(['uno','dos','tres','cuatro','cinco','seis','el','la','y','un','una','[unk]']);
+var NUMBER_GRAMMAR=(function(){var w={},k;for(k in NUM_U)w[k]=1;for(k in NUM_T)w[k]=1;['y','el','la','un','una'].forEach(function(x){w[x]=1;});var l=Object.keys(w);l.push('[unk]');return JSON.stringify(l);})();
 
 /* ===================== Indicador secreto (primer punto) ===================== */
 var dot0=document.querySelector('#dots .d');
@@ -1000,10 +1001,11 @@ function startMic(){
     micStream=stream;
     if(!micCtx)micCtx=new (window.AudioContext||window.webkitAudioContext)();
     return (micCtx.state==='suspended'?micCtx.resume():Promise.resolve()).then(function(){
-      // Reconocimiento LIBRE (sin gramática): el modelo transcribe lo que oye y el
-      // emparejado tolerante (fonético + fuzzy) lo lleva al objeto del banco. Evita
-      // las confusiones que metía la gramática (p.ej. "sandía" -> "zanahoria").
-      voskRec=new voskModel.KaldiRecognizer(micCtx.sampleRate);
+      // PALABRA: reconocimiento libre (evita confusiones tipo sandía/zanahoria).
+      // NÚMERO/DADOS: gramática restringida a números -> acierta mucho mejor a velocidad normal.
+      var gram=(listenMode==='dice')?DICE_GRAMMAR:(listenMode==='number')?NUMBER_GRAMMAR:null;
+      voskRec = gram ? new voskModel.KaldiRecognizer(micCtx.sampleRate, gram)
+                     : new voskModel.KaldiRecognizer(micCtx.sampleRate);
       voskRec.on('result',onVoskResult);
       voskRec.on('partialresult',onVoskPartial);
       micSrc=micCtx.createMediaStreamSource(micStream);
@@ -1058,7 +1060,7 @@ function redrawUser(){
   if(anim){cancelAnimationFrame(anim);anim=null;}
   ctx.clearRect(0,0,CW,CH);brushStyle();
   userStrokes.forEach(function(s){
-    if(s.length===1){dot(s[0]);return;}
+    if(s.length===1){var pp=s[0];ctx.beginPath();ctx.arc(pp[0],pp[1],(pp[2]||brushWidth()/2),0,7);ctx.fillStyle='#fff';ctx.fill();return;}
     ctx.beginPath();ctx.moveTo(s[0][0],s[0][1]);
     for(var i=1;i<s.length;i++)ctx.lineTo(s[i][0],s[i][1]);
     ctx.stroke();
