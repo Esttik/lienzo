@@ -821,12 +821,26 @@ window.__drawNumber=drawNumber; window.__parseNumberES=parseNumberES;   // prueb
 /* ===================== Rutina de DADOS (3 dados, color azul) ===================== */
 /* El mago dibuja 3 cuadrados; al armar (azul) NO se borra el lienzo. El espectador
    dice 3 números 1–6 y la app pone los puntos dentro de cada cuadrado (izq->der). */
-var DICE_W={uno:1,dos:2,tres:3,cuatro:4,cinco:5,seis:6};
+/* 1–6 dicho de cualquier forma: dígito, palabra, variantes/mal-oídos y fuzzy */
+var DICE_CANON=['','uno','dos','tres','cuatro','cinco','seis'];   // índice = valor
+var DICE_VAR={uno:1,
+  dos:2,do:2,dios:2,
+  tres:3,tre:3,tras:3,treis:3,
+  cuatro:4,cuatros:4,catro:4,quatro:4,cuatr:4,
+  cinco:5,sinco:5,cinto:5,cincos:5,
+  seis:6,sei:6,seise:6,seys:6,sais:6,seos:6};
+var DICE_STOP={el:1,la:1,los:1,las:1,un:1,una:1,y:1,e:1,pues:1,es:1,de:1,en:1,con:1,al:1,lo:1,le:1,me:1,se:1,su:1,o:1,a:1,he:1,ha:1,que:1,salido:1,sacado:1,sale:1,numero:1,numeros:1,primero:1,luego:1,despues:1,tambien:1};
+function num6(w){
+  w=clean(w);
+  if(/^[1-6]$/.test(w)) return +w;
+  if(DICE_VAR[w]) return DICE_VAR[w];
+  if(w.length>=3 && !DICE_STOP[w]){
+    for(var v=1;v<=6;v++){ if(lev(w,DICE_CANON[v])<=1) return v; }   // tolera 1 error
+  }
+  return null;
+}
 function parseDice(text){
-  var out=[]; clean(text).split(/\s+/).forEach(function(w){
-    if(/^[1-6]$/.test(w)) out.push(+w);
-    else if(DICE_W[w]!=null) out.push(DICE_W[w]);
-  }); return out;
+  var out=[]; clean(text).split(/\s+/).forEach(function(w){ var n=num6(w); if(n)out.push(n); }); return out;
 }
 function clusterUserStrokes(k){
   var strokes=userStrokes.filter(function(s){return s.length>1;});
