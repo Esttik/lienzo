@@ -1004,6 +1004,7 @@ function startMic(){
   return navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,channelCount:1}})
   .then(function(stream){
     micStream=stream;
+    if(micCtx&&micCtx.state!=='running'&&micCtx.state!=='suspended'){try{micCtx.close();}catch(_){}micCtx=null;}  // 'interrupted'/'closed' -> nuevo
     if(!micCtx)micCtx=new (window.AudioContext||window.webkitAudioContext)();
     return (micCtx.state==='suspended'?micCtx.resume():Promise.resolve()).then(function(){
       // PALABRA: reconocimiento libre (evita confusiones tipo sandía/zanahoria).
@@ -1028,6 +1029,17 @@ function stopMic(){
   if(micStream){micStream.getTracks().forEach(function(t){t.stop();});micStream=null;}  // apaga el indicador de micro
   if(voskRec){try{voskRec.remove();}catch(_){}voskRec=null;}
 }
+/* iOS deja el AudioContext "interrumpido" al volver de segundo plano y el micro deja de
+   alimentar el motor. Al ir a segundo plano soltamos TODO el audio para reconstruirlo
+   limpio al rearmar (así no hay que cerrar y reabrir la app). */
+document.addEventListener('visibilitychange',function(){
+  if(document.hidden){
+    armed=false;pendingKey=null;clearTimeout(listenTimer);clearTimeout(commitTimer);
+    setCue('off');stopMic();
+    try{if(micCtx)micCtx.close();}catch(_){}
+    micCtx=null;
+  }
+});
 /* al empezar: permiso de micro (silencioso) + carga del motor de voz en segundo plano */
 function requestMic(){   // pide el micro SOLO cuando el usuario lo decide (no al abrir la app)
   if(navigator.mediaDevices&&navigator.mediaDevices.getUserMedia){
