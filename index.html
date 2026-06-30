@@ -926,7 +926,7 @@ var AMBIG=(function(){var amb={},ks=[],k;for(k in BANK)ks.push(k);
     for(var j=0;j<ks.length;j++){ if(i===j)continue; var pb=phon(ks[j]);
       if(pb.length>pa.length && pf(pa,pb)>=pa.length-1){amb[ks[i]]=1;break;} } }
   return amb;})();
-var pendingKey=null,commitTimer=null,listenMode='word';   // 'word' = palabra/objeto · 'number' = número
+var pendingKey=null,commitTimer=null,listenMode='word',diceBuffer=[];   // 'word'/'number'/'dice'
 function commitDraw(tok){
   if(!armed)return;
   armed=false;clearTimeout(listenTimer);clearTimeout(commitTimer);pendingKey=null;
@@ -945,8 +945,14 @@ function consider(tok,isFinal,ambiguous){
 }
 function handleHeard(text,isFinal){
   if(listenMode==='dice'){
-    var ds=parseDice(text);
-    if(ds.length>=3) diceConsider(ds.slice(0,3), isFinal);   // 3 números 1–6 -> puntos en los dados
+    var dp=parseDice(text);
+    if(isFinal){
+      for(var di=0;di<dp.length;di++){ if(diceBuffer.length<3) diceBuffer.push(dp[di]); }   // acumula entre frases
+      if(DEBUG)toast('dados: ['+diceBuffer.join(', ')+']',3000);
+      if(diceBuffer.length>=3) commitDice(diceBuffer.slice(0,3));
+    } else if(diceBuffer.length===0 && dp.length>=3){
+      commitDice(dp.slice(0,3));   // si dice los 3 de seguido, al instante
+    }
     return;
   }
   if(listenMode==='number'){
@@ -1016,6 +1022,7 @@ function arm(mode){
     return;
   }
   listenMode=(mode==='number')?'number':(mode==='dice'?'dice':'word');   // cuentagotas=número, azul=dados, blanco=palabra
+  if(listenMode==='dice') diceBuffer=[];
   armed=true;pendingKey=null;clearTimeout(commitTimer);
   if(listenMode!=='dice'){ clearCanvas(); userStrokes=[]; }   // dados: conserva los cuadrados dibujados
   setCue('listening');
