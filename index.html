@@ -952,7 +952,7 @@ function commitDraw(tok){
 /* PARCIAL y FINAL pasan por aquí: nunca dibuja a mitad de palabra/número */
 function consider(tok,isFinal,ambiguous){
   if(!armed||!tok)return;
-  var wait = ambiguous ? 800 : (isFinal?0:450);     // ambiguo: aguanta por si llega lo más largo
+  var wait = ambiguous ? 950 : (isFinal?0:450);     // ambiguo: aguanta por si llega lo más largo
   if(wait<=0){ pendingKey=tok; commitDraw(tok); return; }
   if(tok===pendingKey)return;                       // ya esperando este mismo candidato
   pendingKey=tok;clearTimeout(commitTimer);
@@ -972,11 +972,16 @@ function handleHeard(text,isFinal){
   }
   if(listenMode==='number'){
     var n=parseNumberES(text);
-    if(n!=null) consider('#'+n, isFinal, (n%10===0&&n>=20&&n<100));   // "40" aguanta por si llega "47"
-  }else{
-    var obj=pickObject(text);
-    if(obj&&lookup(obj)) consider(obj, isFinal, !!AMBIG[obj]);
+    if(n==null) return;
+    if(pendingKey&&pendingKey.charAt(0)==='#'){              // ¿decena esperando? + unidad dicha aparte -> 94
+      var pend=parseInt(pendingKey.slice(1),10);
+      if(pend%10===0&&pend>=20&&pend<=90&&n>=1&&n<=9){ consider('#'+(pend+n), isFinal, false); return; }
+    }
+    consider('#'+n, isFinal, (n%10===0&&n>=20&&n<=90));      // decena redonda: aguanta por si llega la unidad
+    return;
   }
+  var obj=pickObject(text);
+  if(obj&&lookup(obj)) consider(obj, isFinal, !!AMBIG[obj]);
 }
 var DEBUG=/[?&]debug/.test(location.search);   // abre con ?debug=1 para ver qué oye la voz
 function onVoskResult(message){            // FINAL
