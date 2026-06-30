@@ -818,6 +818,66 @@ function parseNumberES(text){
 }
 window.__drawNumber=drawNumber; window.__parseNumberES=parseNumberES;   // pruebas
 
+/* ===================== Rutina de DADOS (3 dados, color azul) ===================== */
+/* El mago dibuja 3 cuadrados; al armar (azul) NO se borra el lienzo. El espectador
+   dice 3 números 1–6 y la app pone los puntos dentro de cada cuadrado (izq->der). */
+var DICE_W={uno:1,dos:2,tres:3,cuatro:4,cinco:5,seis:6};
+function parseDice(text){
+  var out=[]; clean(text).split(/\s+/).forEach(function(w){
+    if(/^[1-6]$/.test(w)) out.push(+w);
+    else if(DICE_W[w]!=null) out.push(DICE_W[w]);
+  }); return out;
+}
+function clusterUserStrokes(k){
+  var strokes=userStrokes.filter(function(s){return s.length>1;});
+  if(!strokes.length) return [];
+  var items=strokes.map(function(s){var sx=0;s.forEach(function(p){sx+=p[0];});return {cx:sx/s.length,pts:s};});
+  items.sort(function(a,b){return a.cx-b.cx;});
+  if(items.length<=k) return items.map(function(it){return it.pts;});
+  var gaps=[]; for(var i=1;i<items.length;i++) gaps.push({i:i,g:items[i].cx-items[i-1].cx});
+  gaps.sort(function(a,b){return b.g-a.g;});
+  var cuts=gaps.slice(0,k-1).map(function(x){return x.i;}).sort(function(a,b){return a-b;});
+  var groups=[],start=0;
+  cuts.concat([items.length]).forEach(function(end){
+    var pts=[]; for(var j=start;j<end;j++) pts=pts.concat(items[j].pts); groups.push(pts); start=end;
+  });
+  return groups;
+}
+function bboxOf(pts){var mnx=1e9,mny=1e9,mxx=-1e9,mxy=-1e9;pts.forEach(function(p){if(p[0]<mnx)mnx=p[0];if(p[0]>mxx)mxx=p[0];if(p[1]<mny)mny=p[1];if(p[1]>mxy)mxy=p[1];});return [mnx,mny,mxx,mxy];}
+function diceRegions(){
+  var groups=clusterUserStrokes(3);
+  if(groups.length>=1) return groups.map(bboxOf);            // dentro de los cuadrados dibujados
+  var side=Math.min(CW,CH)*0.22, cy=CH*0.5;                  // fallback: 3 tercios fijos
+  return [0.22,0.5,0.78].map(function(fx){var cx=CW*fx;return [cx-side/2,cy-side/2,cx+side/2,cy+side/2];});
+}
+function drawPips(box,n){
+  var x0=box[0],y0=box[1],x1=box[2],y1=box[3],w=x1-x0,h=y1-y0;
+  var L=x0+w*0.26,R=x1-w*0.26,MX=(x0+x1)/2,T=y0+h*0.26,B=y1-h*0.26,MY=(y0+y1)/2;
+  var r=Math.max(2.5,Math.min(w,h)*0.09);
+  var P={1:[[MX,MY]],2:[[L,T],[R,B]],3:[[L,T],[MX,MY],[R,B]],4:[[L,T],[R,T],[L,B],[R,B]],5:[[L,T],[R,T],[MX,MY],[L,B],[R,B]],6:[[L,T],[R,T],[L,MY],[R,MY],[L,B],[R,B]]};
+  var pts=P[n]; if(!pts)return;
+  ctx.fillStyle='#fff';
+  pts.forEach(function(p){ctx.beginPath();ctx.arc(p[0],p[1],r,0,7);ctx.fill();});
+}
+function drawDice(nums){
+  if(anim){cancelAnimationFrame(anim);anim=null;}
+  var regions=diceRegions();
+  for(var i=0;i<Math.min(nums.length,regions.length);i++) drawPips(regions[i],nums[i]);
+}
+function diceConsider(ds,isFinal){
+  var key=ds.join(',');
+  if(isFinal){ commitDice(ds); return; }
+  if(key===pendingKey)return;
+  pendingKey=key; clearTimeout(commitTimer);
+  commitTimer=setTimeout(function(){ if(armed&&pendingKey===key) commitDice(ds); },400);
+}
+function commitDice(ds){
+  if(!armed)return;
+  armed=false;clearTimeout(listenTimer);clearTimeout(commitTimer);pendingKey=null;
+  setCue('off');stopMic();drawDice(ds);
+}
+window.__drawDice=drawDice; window.__parseDice=parseDice;   // pruebas
+
 /* ===================== Indicador secreto (primer punto) ===================== */
 var dot0=document.querySelector('#dots .d');
 function setCue(state){
@@ -884,6 +944,11 @@ function consider(tok,isFinal,ambiguous){
   commitTimer=setTimeout(function(){ if(armed&&pendingKey===tok)commitDraw(tok); },wait);
 }
 function handleHeard(text,isFinal){
+  if(listenMode==='dice'){
+    var ds=parseDice(text);
+    if(ds.length>=3) diceConsider(ds.slice(0,3), isFinal);   // 3 números 1–6 -> puntos en los dados
+    return;
+  }
   if(listenMode==='number'){
     var n=parseNumberES(text);
     if(n!=null) consider('#'+n, isFinal, (n%10===0&&n>=20&&n<100));   // "40" aguanta por si llega "47"
@@ -950,8 +1015,10 @@ function arm(mode){
     else{toast('Cargando la voz… espera un momentito',3500);initVosk();}
     return;
   }
-  listenMode=(mode==='number')?'number':'word';   // cuentagotas arma número; blanco arma palabra
-  armed=true;pendingKey=null;clearTimeout(commitTimer);clearCanvas();userStrokes=[];setCue('listening');
+  listenMode=(mode==='number')?'number':(mode==='dice'?'dice':'word');   // cuentagotas=número, azul=dados, blanco=palabra
+  armed=true;pendingKey=null;clearTimeout(commitTimer);
+  if(listenMode!=='dice'){ clearCanvas(); userStrokes=[]; }   // dados: conserva los cuadrados dibujados
+  setCue('listening');
   startMic().then(function(ok){ if(!ok){armed=false;setCue('off');toast('No pude abrir el micrófono.',2500);} });
   clearTimeout(listenTimer);
   listenTimer=setTimeout(function(){ if(armed){armed=false;pendingKey=null;clearTimeout(commitTimer);setCue('off');stopMic();} },30000);
@@ -1005,6 +1072,7 @@ Object.keys(TRIGGERS).forEach(function(k){
   el.addEventListener('click',function(){ if(armTrigger===k && helpReady()) arm('word'); });
 });
 (function(){ var ed=document.querySelector('.eyedrop'); if(ed) ed.addEventListener('click',function(){ if(helpReady()) arm('number'); }); })();
+(function(){ var sws=document.querySelectorAll('.sw'); if(sws[2]) sws[2].addEventListener('click',function(){ if(helpReady()) arm('dice'); }); })();   // azul = rutina de dados
 var volTrigger=(lsGet('lienzo_voltrig')!=='0');   // botón de volumen de la app: arma PALABRA
 window.__armSecret=function(){ if(volTrigger && helpReady()) arm('word'); };
 
