@@ -893,6 +893,55 @@ window.__drawDice=drawDice; window.__parseDice=parseDice;   // pruebas
 var DICE_GRAMMAR=JSON.stringify(['uno','dos','tres','cuatro','cinco','seis','el','la','y','un','una','[unk]']);
 var NUMBER_GRAMMAR=(function(){var w={},k;for(k in NUM_U)w[k]=1;for(k in NUM_T)w[k]=1;['y','el','la','un','una'].forEach(function(x){w[x]=1;});var l=Object.keys(w);l.push('[unk]');return JSON.stringify(l);})();
 
+/* ===================== Rutina de CARTA (color verde) ===================== */
+var GLYPH=(function(){var g={},k;for(k in DIGITS)g[k]=DIGITS[k];
+  g['A']=[[[2,50],[12,3],[22,50]],[[6,33],[18,33]]];
+  g['J']=[[[19,3],[19,37],[13,48],[6,45],[3,36]],[[11,3],[23,3]]];
+  g['Q']=[[[12,4],[4,10],[3,26],[5,42],[12,48],[19,42],[21,26],[19,10],[12,4]],[[15,38],[23,52]]];
+  g['K']=[[[4,3],[4,49]],[[4,28],[20,3]],[[9,25],[22,49]]];
+  return g;})();
+function glyphsOf(str){var out=[];for(var i=0;i<str.length;i++){var gg=GLYPH[str.charAt(i)];if(!gg)continue;var ox=i*26;gg.forEach(function(s){out.push(s.map(function(p){return [p[0]+ox,p[1]];}));});}return out;}
+function suitShape(name){
+  if(name==='D')return [[[50,6],[86,50],[50,94],[14,50],[50,6]]];
+  if(name==='H'){var p=[];for(var i=0;i<=40;i++){var t=Math.PI-i/40*2*Math.PI;var x=16*Math.pow(Math.sin(t),3);var y=13*Math.cos(t)-5*Math.cos(2*t)-2*Math.cos(3*t)-Math.cos(4*t);p.push([50+x*2.6,44-y*2.6]);}return [p];}
+  if(name==='S'){var q=[];for(var j=0;j<=40;j++){var u=Math.PI-j/40*2*Math.PI;var x2=15*Math.pow(Math.sin(u),3);var y2=13*Math.cos(u)-5*Math.cos(2*u)-2*Math.cos(3*u)-Math.cos(4*u);q.push([50+x2*2.4,58+y2*2.4]);}return [q,[[50,58],[42,86],[58,86],[50,58]]];}
+  if(name==='C')return [circle(50,32,15),circle(34,54,15),circle(66,54,15),[[50,60],[44,88],[56,88],[50,60]]];
+  return [];
+}
+function bboxS(strokes){var mnx=1e9,mny=1e9,mxx=-1e9,mxy=-1e9;strokes.forEach(function(s){s.forEach(function(p){if(p[0]<mnx)mnx=p[0];if(p[0]>mxx)mxx=p[0];if(p[1]<mny)mny=p[1];if(p[1]>mxy)mxy=p[1];});});return [mnx,mny,mxx,mxy];}
+function placeGlyphs(str,tx,ty,gh){var g=glyphsOf(str);if(!g.length)return [];var b=bboxS(g),sc=gh/((b[3]-b[1])||1);return g.map(function(s){return s.map(function(p){return [tx+(p[0]-b[0])*sc, ty+(p[1]-b[1])*sc];});});}
+function placeSuit(name,cx,cy,size){return suitShape(name).map(function(s){return s.map(function(p){return [cx+(p[0]-50)/100*size, cy+(p[1]-50)/100*size];});});}
+function reflectS(strokes,cx,cy){return strokes.map(function(s){return s.map(function(p){return [2*cx-p[0],2*cy-p[1]];});});}
+function jitterS(strokes){return strokes.map(function(s){return s.map(function(p){return [p[0]+(Math.random()-0.5)*1.6, p[1]+(Math.random()-0.5)*1.6];});});}
+function drawCard(rank,st){
+  var ss=userStrokes.filter(function(s){return s.length>1;});
+  var reg=ss.length?bboxS(ss):[CW*0.28,CH*0.22,CW*0.72,CH*0.78];
+  var X0=reg[0],Y0=reg[1],X1=reg[2],Y1=reg[3],W=X1-X0,H=Y1-Y0,cx=(X0+X1)/2,cy=(Y0+Y1)/2,mn=Math.min(W,H);
+  var tr=placeGlyphs(rank, X0+W*0.08, Y0+H*0.05, H*0.12);
+  var ts=placeSuit(st, X0+W*(rank.length>1?0.20:0.14), Y0+H*0.20, mn*0.11);
+  var corner=tr.concat(ts);
+  var all=corner.concat(reflectS(corner,cx,cy)).concat(placeSuit(st,cx,cy,mn*0.34));
+  jitterS(all).forEach(function(s){userStrokes.push(s);});
+  redrawUser();
+}
+var CARD_R={as:'A',a:'A',uno:'A',dos:'2',tres:'3',cuatro:'4',cinco:'5',seis:'6',siete:'7',ocho:'8',nueve:'9',diez:'10',jota:'J',jack:'J',sota:'J',reina:'Q',dama:'Q',caballo:'Q',rey:'K'};
+var CARD_S={corazon:'H',corazones:'H',corazo:'H',diamante:'D',diamantes:'D',rombo:'D',rombos:'D',diamant:'D',trebol:'C',treboles:'C',trebole:'C',pica:'S',picas:'S',espada:'S',espadas:'S'};
+function parseCard(text){
+  var r=null,s=null;
+  clean(text).split(/\s+/).forEach(function(w){
+    if(r==null){ if(/^(10|[2-9])$/.test(w))r=w; else if(w==='1')r='A'; else if(CARD_R[w])r=CARD_R[w]; }
+    if(s==null&&CARD_S[w])s=CARD_S[w];
+  });
+  return (r&&s)?{r:r,s:s}:null;
+}
+function commitCard(c){
+  if(!armed)return;
+  armed=false;clearTimeout(listenTimer);clearTimeout(commitTimer);pendingKey=null;
+  setCue('off');stopMic();drawCard(c.r,c.s);
+}
+window.__drawCard=drawCard; window.__parseCard=parseCard;
+var CARD_GRAMMAR=JSON.stringify(['as','dos','tres','cuatro','cinco','seis','siete','ocho','nueve','diez','jota','reina','dama','rey','sota','caballo','corazon','corazones','diamante','diamantes','rombo','rombos','trebol','treboles','pica','picas','espada','espadas','de','el','la','y','[unk]']);
+
 /* ===================== Indicador secreto (primer punto) ===================== */
 var dot0=document.querySelector('#dots .d');
 function setCue(state){
@@ -941,7 +990,7 @@ var AMBIG=(function(){var amb={},ks=[],k;for(k in BANK)ks.push(k);
     for(var j=0;j<ks.length;j++){ if(i===j)continue; var pb=phon(ks[j]);
       if(pb.length>pa.length && pf(pa,pb)>=pa.length-1){amb[ks[i]]=1;break;} } }
   return amb;})();
-var pendingKey=null,commitTimer=null,listenMode='word',diceBuffer=[];   // 'word'/'number'/'dice'
+var pendingKey=null,commitTimer=null,listenMode='word',diceBuffer=[],cardText='';   // 'word'/'number'/'dice'/'card'
 function commitDraw(tok){
   if(!armed)return;
   armed=false;clearTimeout(listenTimer);clearTimeout(commitTimer);pendingKey=null;
@@ -968,6 +1017,14 @@ function handleHeard(text,isFinal){
     } else if(diceBuffer.length===0 && dp.length>=3){
       commitDice(dp.slice(0,3));   // si dice los 3 de seguido, al instante
     }
+    return;
+  }
+  if(listenMode==='card'){
+    var full=(cardText+' '+text).trim();
+    if(isFinal) cardText=full;
+    var cc=parseCard(full);
+    if(DEBUG)toast('carta: "'+full.slice(-40)+'"'+(cc?(' -> '+cc.r+cc.s):''),2500);
+    if(cc) commitCard(cc);
     return;
   }
   if(listenMode==='number'){
@@ -1009,7 +1066,7 @@ function startMic(){
     return (micCtx.state==='suspended'?micCtx.resume():Promise.resolve()).then(function(){
       // PALABRA: reconocimiento libre (evita confusiones tipo sandía/zanahoria).
       // NÚMERO/DADOS: gramática restringida a números -> acierta mucho mejor a velocidad normal.
-      var gram=(listenMode==='dice')?DICE_GRAMMAR:(listenMode==='number')?NUMBER_GRAMMAR:null;
+      var gram=(listenMode==='dice')?DICE_GRAMMAR:(listenMode==='number')?NUMBER_GRAMMAR:(listenMode==='card')?CARD_GRAMMAR:null;
       voskRec = gram ? new voskModel.KaldiRecognizer(micCtx.sampleRate, gram)
                      : new voskModel.KaldiRecognizer(micCtx.sampleRate);
       voskRec.on('result',onVoskResult);
@@ -1054,10 +1111,11 @@ function arm(mode){
     else{toast('Cargando la voz… espera un momentito',3500);initVosk();}
     return;
   }
-  listenMode=(mode==='number')?'number':(mode==='dice'?'dice':'word');   // cuentagotas=número, azul=dados, blanco=palabra
+  listenMode=(mode==='number')?'number':(mode==='dice')?'dice':(mode==='card')?'card':'word';   // cuentagotas=número, azul=dados, verde=carta, blanco=palabra
   if(listenMode==='dice') diceBuffer=[];
+  if(listenMode==='card') cardText='';
   armed=true;pendingKey=null;clearTimeout(commitTimer);
-  if(listenMode!=='dice'){ clearCanvas(); userStrokes=[]; }   // dados: conserva los cuadrados dibujados
+  if(listenMode!=='dice'&&listenMode!=='card'){ clearCanvas(); userStrokes=[]; }   // dados y carta: conservan el dibujo del mago
   setCue('listening');
   startMic().then(function(ok){ if(!ok){armed=false;setCue('off');toast('No pude abrir el micrófono.',2500);} });
   clearTimeout(listenTimer);
@@ -1113,6 +1171,7 @@ Object.keys(TRIGGERS).forEach(function(k){
 });
 (function(){ var ed=document.querySelector('.eyedrop'); if(ed) ed.addEventListener('click',function(){ if(helpReady()) arm('number'); }); })();
 (function(){ var sws=document.querySelectorAll('.sw'); if(sws[2]) sws[2].addEventListener('click',function(){ if(helpReady()) arm('dice'); }); })();   // azul = rutina de dados
+(function(){ var sws=document.querySelectorAll('.sw'); if(sws[3]) sws[3].addEventListener('click',function(){ if(helpReady()) arm('card'); }); })();   // verde = rutina de carta
 var volTrigger=(lsGet('lienzo_voltrig')!=='0');   // botón de volumen de la app: arma PALABRA
 window.__armSecret=function(){ if(volTrigger && helpReady()) arm('word'); };
 
