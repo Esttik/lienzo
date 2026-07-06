@@ -1067,8 +1067,8 @@ function startMic(){
       // PALABRA: reconocimiento libre (evita confusiones tipo sandía/zanahoria).
       // NÚMERO/DADOS: gramática restringida a números -> acierta mucho mejor a velocidad normal.
       var gram=(listenMode==='dice')?DICE_GRAMMAR:(listenMode==='number')?NUMBER_GRAMMAR:(listenMode==='card')?CARD_GRAMMAR:null;
-      voskRec = gram ? new voskModel.KaldiRecognizer(micCtx.sampleRate, gram)
-                     : new voskModel.KaldiRecognizer(micCtx.sampleRate);
+      try{ voskRec = gram ? new voskModel.KaldiRecognizer(micCtx.sampleRate, gram) : new voskModel.KaldiRecognizer(micCtx.sampleRate); }
+      catch(_){ voskRec = new voskModel.KaldiRecognizer(micCtx.sampleRate); }   // si la gramática falla -> reconocimiento libre
       voskRec.on('result',onVoskResult);
       voskRec.on('partialresult',onVoskPartial);
       micSrc=micCtx.createMediaStreamSource(micStream);
