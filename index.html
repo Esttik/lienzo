@@ -524,22 +524,12 @@ var SYN={
 function lookup(key){ if(BANK[key]) return BANK[key]; if(SYN[key]&&BANK[SYN[key]]) return BANK[SYN[key]]; return null; }
 
 /* ===================== Extracción del objeto ===================== */
-var ARTICLES=['un','una','unos','unas','el','la','los','las'];
 var STOP=['veo','vi','es','un','una','unos','unas','el','la','los','las','que','de','del',
  'dibuja','pinta','seguro','segura','vale','verdad','cierto','parece','bien','te','me','se',
  'creo','pienso','mmm','eh','ehh','o','y','con','sin','este','esta','esto','algo','cosa','ya',
  'voy','a','adivinar','tu','tu','dibujo','has','dibujado','quizas','tal','vez','sera','aqui','hay'];
 function clean(w){return w.toLowerCase().replace(/[¿?¡!.,;:"'()]/g,'')
  .replace(/[áàä]/g,'a').replace(/[éèë]/g,'e').replace(/[íìï]/g,'i').replace(/[óòö]/g,'o').replace(/[úùü]/g,'u');}
-function extractObject(phrase){
-  if(!phrase) return null;
-  var raw=phrase.trim().split(/\s+/);
-  var W=raw.map(function(w){return {orig:w.replace(/[¿?¡!.,;:"'()]/g,''),c:clean(w)};});
-  for(var i=0;i<W.length;i++){ if(ARTICLES.indexOf(W[i].c)!==-1){
-    for(var j=i+1;j<W.length;j++){ if(W[j].c&&STOP.indexOf(W[j].c)===-1&&W[j].c.length>1) return W[j].c; } } }
-  for(var k=0;k<W.length;k++){ if(W[k].c&&STOP.indexOf(W[k].c)===-1&&W[k].c.length>2) return W[k].c; }
-  return null;
-}
 /* ---- Emparejado tolerante: seseo (z y c->s), acentos, plurales y 1 error ---- */
 function phon(w){
   w=clean(w);
@@ -574,25 +564,26 @@ var GRAMMAR=(function(){var ws={},k;
   var list=Object.keys(ws); list.push('[unk]'); return JSON.stringify(list);
 })();
 /* primera palabra de la frase que EXISTE en el banco (objeto/animal/cosa) */
-function pickObject(text){
+function pickObject(text,isFinal){
   if(!text)return null;
   var ws=text.split(/\s+/),i,c;
-  // 1) exacto / seseo / plural en palabras de contenido (saltando "veo","una"...)
+  // 1) exacto / seseo / plural en palabras de contenido (saltando "veo","una"...) -> barato, corre en cada parcial
   for(i=0;i<ws.length;i++){ c=clean(ws[i]);
     if(!c||STOP.indexOf(c)!==-1)continue;
     if(BANK[c])return c;
     if(SYN[c]&&BANK[SYN[c]])return SYN[c];
     var p=phon(ws[i]); if(PHON[p])return PHON[p];
   }
-  // 2) red de seguridad: tolera 1 error solo en palabras largas de contenido
-  for(i=0;i<ws.length;i++){ c=clean(ws[i]);
-    if(!c||c.length<4||STOP.indexOf(c)!==-1)continue;
-    var k=fuzzyKey(ws[i]); if(k)return k;
+  // 2) red de seguridad (fuzzy, más caro): SOLO en el resultado FINAL, no en cada parcial -> no recarga el hilo
+  if(isFinal){
+    for(i=0;i<ws.length;i++){ c=clean(ws[i]);
+      if(!c||c.length<4||STOP.indexOf(c)!==-1)continue;
+      var k=fuzzyKey(ws[i]); if(k)return k;
+    }
   }
   return null;   // nada en el banco -> avisa (parpadea el punto), no inventa
 }
 window.__pickObject=pickObject;   // para pruebas
-window.__extractObject=extractObject;
 
 /* ===================== Lienzo + pincel Instagram ===================== */
 var cv=document.getElementById('art'),ctx=cv.getContext('2d');
@@ -802,19 +793,20 @@ var NUM_T={treinta:30,cuarenta:40,cincuenta:50,sesenta:60,setenta:70,ochenta:80,
 function parseNumberES(text){
   if(!text)return null;
   var t=clean(text);
-  var dm=t.match(/\d{1,3}/);
-  if(dm){var d=parseInt(dm[0],10); if(d>=1&&d<=100)return d;}
-  var w=t.split(/\s+/),total=null;
+  var w=t.split(/\s+/),last=null,cur=null;
+  function flush(){ if(cur!=null&&cur>=1&&cur<=100)last=cur; cur=null; }   // cada número completo es un candidato; nos quedamos con el ÚLTIMO válido
   for(var i=0;i<w.length;i++){
-    if(NUM_U[w[i]]!=null){ total=(total||0)+NUM_U[w[i]]; }
-    else if(NUM_T[w[i]]!=null){
-      var b=NUM_T[w[i]];
-      if(w[i+1]==='y'&&NUM_U[w[i+2]]!=null&&NUM_U[w[i+2]]<10){ b+=NUM_U[w[i+2]]; i+=2; }
-      total=(total||0)+b;
-    }
+    var tok=w[i];
+    if(/^\d{1,3}$/.test(tok)){ flush(); var v=parseInt(tok,10); if(v>=1&&v<=100)cur=v; flush(); continue; }
+    if(NUM_T[tok]!=null){
+      flush(); cur=NUM_T[tok];
+      if(w[i+1]==='y'&&NUM_U[w[i+2]]!=null&&NUM_U[w[i+2]]<10){ cur+=NUM_U[w[i+2]]; i+=2; }
+      else if(NUM_U[w[i+1]]!=null&&NUM_U[w[i+1]]<10){ cur+=NUM_U[w[i+1]]; i+=1; }   // "noventa cuatro" -> 94
+      flush();
+    } else if(NUM_U[tok]!=null){ flush(); cur=NUM_U[tok]; flush(); }
   }
-  if(total!=null&&total>=1&&total<=100)return total;
-  return null;
+  flush();
+  return last;
 }
 window.__drawNumber=drawNumber; window.__parseNumberES=parseNumberES;   // pruebas
 
@@ -938,12 +930,14 @@ function drawCard(rank,st){
 var CARD_R={as:'A',a:'A',uno:'A',dos:'2',tres:'3',cuatro:'4',cinco:'5',seis:'6',siete:'7',ocho:'8',nueve:'9',diez:'10',jota:'J',jack:'J',sota:'J',reina:'Q',dama:'Q',caballo:'Q',rey:'K'};
 var CARD_S={corazon:'H',corazones:'H',corazo:'H',diamante:'D',diamantes:'D',rombo:'D',rombos:'D',diamant:'D',trebol:'C',treboles:'C',trebole:'C',pica:'S',picas:'S',espada:'S',espadas:'S'};
 function parseCard(text){
-  var r=null,s=null;
+  var r=null,res=null;
   clean(text).split(/\s+/).forEach(function(w){
-    if(r==null){ if(/^(10|[2-9])$/.test(w))r=w; else if(w==='1')r='A'; else if(CARD_R[w])r=CARD_R[w]; }
-    if(s==null&&CARD_S[w])s=CARD_S[w];
+    if(/^(10|[2-9])$/.test(w))r=w;            // actualiza al ÚLTIMO valor dicho (tolera autocorrección)
+    else if(w==='1')r='A';
+    else if(CARD_R[w])r=CARD_R[w];
+    if(CARD_S[w]&&r!=null)res={r:r,s:CARD_S[w]};   // empareja el palo con el valor vigente ("cuatro no, rey de picas" -> rey)
   });
-  return (r&&s)?{r:r,s:s}:null;
+  return res;
 }
 function commitCard(c){
   if(!armed)return;
@@ -962,7 +956,8 @@ function setCue(state){
 
 /* ============ Voz: motor propio Vosk (NO usa el dictado de Apple => SIN tono) ============ */
 var VOSK_JS='https://cdn.jsdelivr.net/npm/vosk-browser@0.0.8/dist/vosk.js';
-var MODEL_URL='https://ccoreilly.github.io/vosk-browser/models/vosk-model-small-es-0.3.tar.gz';
+var MODEL_URL='https://esttik.github.io/lienzo/vosk-model-small-es-0.3.tar.gz';            // modelo en TU repo (bajo tu control)
+var MODEL_URL_FALLBACK='https://ccoreilly.github.io/vosk-browser/models/vosk-model-small-es-0.3.tar.gz';   // respaldo si tu host fallara
 var armed=false,listenTimer=null;
 var voskModel=null,voskRec=null,voskReady=false,voskLoading=false;
 var micStream=null,micCtx=null,micNode=null,micSrc=null,listening=false;
@@ -982,7 +977,7 @@ function initVosk(){
   if(voskReady||voskLoading)return;
   voskLoading=true;toast('Preparando la voz… (la primera vez tarda unos segundos)',0);
   loadVoskScript()
-    .then(function(){return window.Vosk.createModel(MODEL_URL);})
+    .then(function(){return window.Vosk.createModel(MODEL_URL).catch(function(){return window.Vosk.createModel(MODEL_URL_FALLBACK);});})   // primario propio; si falla, respaldo
     .then(function(m){voskModel=m;voskReady=true;voskLoading=false;toast('🎤 Voz lista',1500);
       var ok=document.getElementById('micOk');if(ok)ok.classList.remove('hidden');})
     .catch(function(){voskLoading=false;toast('No se pudo cargar la voz. Revisa tu conexión a internet.',4500);});
@@ -1012,7 +1007,7 @@ function commitDraw(tok){
 /* PARCIAL y FINAL pasan por aquí: nunca dibuja a mitad de palabra/número */
 function consider(tok,isFinal,ambiguous){
   if(!armed||!tok)return;
-  var wait = ambiguous ? 950 : (isFinal?0:450);     // ambiguo: aguanta por si llega lo más largo
+  var wait = isFinal ? 0 : (ambiguous ? 950 : 450);   // FINAL dibuja al instante; el PARCIAL sigue cauto (no dibuja a mitad de palabra)
   if(wait<=0){ pendingKey=tok; commitDraw(tok); return; }
   if(tok===pendingKey)return;                       // ya esperando este mismo candidato
   pendingKey=tok;clearTimeout(commitTimer);
@@ -1048,7 +1043,7 @@ function handleHeard(text,isFinal){
     consider('#'+n, isFinal, (n%10===0&&n>=20&&n<=90));      // decena redonda: aguanta por si llega la unidad
     return;
   }
-  var obj=pickObject(text);
+  var obj=pickObject(text,isFinal);
   if(obj&&lookup(obj)) consider(obj, isFinal, !!AMBIG[obj]);
 }
 var DEBUG=/[?&]debug/.test(location.search);   // abre con ?debug=1 para ver qué oye la voz
@@ -1071,10 +1066,12 @@ function startMic(){
   if(!voskReady)return Promise.resolve(false);
   return navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,channelCount:1}})
   .then(function(stream){
+    if(!armed){ stream.getTracks().forEach(function(t){t.stop();}); return false; }   // se desarmó (p.ej. 2º plano) mientras se pedía el micro
     micStream=stream;
     if(micCtx&&micCtx.state!=='running'&&micCtx.state!=='suspended'){try{micCtx.close();}catch(_){}micCtx=null;}  // 'interrupted'/'closed' -> nuevo
     if(!micCtx)micCtx=new (window.AudioContext||window.webkitAudioContext)();
     return (micCtx.state==='suspended'?micCtx.resume():Promise.resolve()).then(function(){
+      if(!armed){ try{micStream.getTracks().forEach(function(t){t.stop();});}catch(_){}micStream=null; return false; }   // desarmado durante el arranque del audio
       // PALABRA: reconocimiento libre (evita confusiones tipo sandía/zanahoria).
       // NÚMERO/DADOS: gramática restringida a números -> acierta mucho mejor a velocidad normal.
       var gram=(listenMode==='dice')?DICE_GRAMMAR:(listenMode==='number')?NUMBER_GRAMMAR:(listenMode==='card')?CARD_GRAMMAR:null;
