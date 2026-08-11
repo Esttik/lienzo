@@ -913,15 +913,26 @@ function placeGlyphs(str,tx,ty,gh){var g=glyphsOf(str);if(!g.length)return [];va
 function placeSuit(name,cx,cy,size){return suitShape(name).map(function(s){return s.map(function(p){return [cx+(p[0]-50)/100*size, cy+(p[1]-50)/100*size];});});}
 function reflectS(strokes,cx,cy){return strokes.map(function(s){return s.map(function(p){return [2*cx-p[0],2*cy-p[1]];});});}
 function jitterS(strokes){return strokes.map(function(s){return s.map(function(p){return [p[0]+(Math.random()-0.5)*1.6, p[1]+(Math.random()-0.5)*1.6];});});}
+function tiltS(strokes,cx,cy,ang){var ca=Math.cos(ang),sa=Math.sin(ang);
+  return strokes.map(function(s){return s.map(function(p){var dx=p[0]-cx,dy=p[1]-cy;return [cx+dx*ca-dy*sa,cy+dx*sa+dy*ca];});});}
+function centS(strokes){var b=bboxS(strokes);return [(b[0]+b[2])/2,(b[1]+b[3])/2];}
 function drawCard(rank,st){
   var ss=userStrokes.filter(function(s){return s.length>1;});
   var reg=ss.length?bboxS(ss):[CW*0.28,CH*0.22,CW*0.72,CH*0.78];
   var X0=reg[0],Y0=reg[1],X1=reg[2],Y1=reg[3],W=X1-X0,H=Y1-Y0,cx=(X0+X1)/2,cy=(Y0+Y1)/2,mn=Math.min(W,H);
-  var tr=placeGlyphs(rank, X0+W*0.08, Y0+H*0.05, H*0.12);
-  var ts=placeSuit(st, X0+W*(rank.length>1?0.20:0.14), Y0+H*0.20, mn*0.11);
+  var bw=brushWidth(), thin=Math.max(4,bw*0.5);                     // esquinas con trazo fino -> legibles
+  // esquina sup-izq: valor arriba, palo justo debajo y centrado bajo el valor
+  var tr=placeGlyphs(rank, X0+W*0.10, Y0+H*0.06, H*0.16);
+  var vb=bboxS(tr), vcx=(vb[0]+vb[2])/2;
+  var ts=placeSuit(st, vcx, vb[3]+mn*0.085, mn*0.12);
   var corner=tr.concat(ts);
-  var all=corner.concat(reflectS(corner,cx,cy)).concat(placeSuit(st,cx,cy,mn*0.34));
-  jitterS(all).forEach(function(s){userStrokes.push(s);});
+  var cc=centS(corner);
+  corner=tiltS(corner,cc[0],cc[1],(Math.random()-0.5)*0.10);        // ladeo casual de la esquina
+  var bottom=reflectS(corner,cx,cy);                                // esquina opuesta (girada 180)
+  var center=tiltS(placeSuit(st,cx,cy,mn*0.46),cx,cy,(Math.random()-0.5)*0.12);   // palo central grande
+  curWarp=makeWarp();                                               // mismo aire "hecho a mano" que los garabatos
+  function pushH(strokes,width){strokes.forEach(function(s){var h=prep(s);h.w=width;userStrokes.push(h);});}
+  pushH(corner,thin);pushH(bottom,thin);pushH(center,bw);
   redrawUser();
 }
 var CARD_R={as:'A',a:'A',uno:'A',dos:'2',tres:'3',cuatro:'4',cinco:'5',seis:'6',siete:'7',ocho:'8',nueve:'9',diez:'10',jota:'J',jack:'J',sota:'J',reina:'Q',dama:'Q',caballo:'Q',rey:'K'};
@@ -1133,9 +1144,10 @@ function brushStyle(){ctx.lineCap='round';ctx.lineJoin='round';ctx.strokeStyle='
 function dot(p){ctx.beginPath();ctx.arc(p[0],p[1],brushWidth()/2,0,7);ctx.fillStyle='#fff';ctx.fill();}
 function redrawUser(){
   if(anim){cancelAnimationFrame(anim);anim=null;}
-  ctx.clearRect(0,0,CW,CH);brushStyle();
+  ctx.clearRect(0,0,CW,CH);brushStyle();var bw=brushWidth();
   userStrokes.forEach(function(s){
-    if(s.length===1){var pp=s[0];ctx.beginPath();ctx.arc(pp[0],pp[1],(pp[2]||brushWidth()/2),0,7);ctx.fillStyle='#fff';ctx.fill();return;}
+    if(s.length===1){var pp=s[0];ctx.beginPath();ctx.arc(pp[0],pp[1],(pp[2]||bw/2),0,7);ctx.fillStyle='#fff';ctx.fill();return;}
+    ctx.lineWidth=s.w||bw;   // grosor por trazo (la carta usa fino en esquinas)
     ctx.beginPath();ctx.moveTo(s[0][0],s[0][1]);
     for(var i=1;i<s.length;i++)ctx.lineTo(s[i][0],s[i][1]);
     ctx.stroke();
