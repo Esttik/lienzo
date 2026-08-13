@@ -1164,7 +1164,7 @@ function cpos(e){var r=cv.getBoundingClientRect();
   var x=(e.clientX!=null?e.clientX:e.touches[0].clientX)-r.left;
   var y=(e.clientY!=null?e.clientY:e.touches[0].clientY)-r.top;return [x,y];}
 cv.addEventListener('pointerdown',function(e){
-  if(RX_ROOM)return;              // receptor: el espectador no dibuja (lienzo impoluto para el reveal)
+  if(RX_ROOM||ESPIA!=null)return;   // receptor o espía: no se dibuja con el dedo aquí
   if(!helpReady())return;
   drawing=true;var p=cpos(e);cur=[p];userStrokes.push(cur);
   brushStyle();dot(p);
@@ -1304,6 +1304,8 @@ var RX_ROOM=QP.get('receptor')||QP.get('rx')||null;         // presente => este 
 var DEFAULT_ROOM='sala-esttik-7c1';
 var LINK_ROOM=QP.get('mando')||DEFAULT_ROOM;                 // sala que usa el mando
 var RELAY=false;                                            // ¿enviar los dibujos al receptor?
+var EMISOR=(QP.get('emisor')!==null);                       // ESTE móvil (espectador) ENVÍA en directo lo que dibuja
+var ESPIA=QP.get('espia');                                  // ESTE móvil (mago) VE lo que dibuja el espectador (null = no)
 var FB_CONFIG={ databaseURL:"https://lienzo-magia-default-rtdb.firebaseio.com", projectId:"lienzo-magia" };   /* base en tiempo real (para RTDB basta la databaseURL) */
 var fbDb=null,fbReady=false;
 function loadFirebase(){return new Promise(function(res,rej){
@@ -1385,8 +1387,80 @@ if(QP.get('mando')||lsGet('lienzo_link')==='1')RELAY=true;
   var gg=document.getElementById('gear'); if(gg)gg.addEventListener('click',rl); rl();
 })();
 
+/* ===================== ESPEJO EN DIRECTO (el mago VE lo que dibuja el espectador) =====================
+   - Espectador abre .../lienzo?emisor=1  => muestra un CÓDIGO y ENVÍA en vivo lo que dibuja.
+   - Mago abre .../lienzo?espia=1  => teclea el código ("calculadora") y VE en vivo lo que dibuja. */
+function normStrokes(){   // trazos a fracción 0..1 (para que encaje en cualquier pantalla)
+  return userStrokes.map(function(s){return s.map(function(p){return [Math.round(p[0]/CW*1e4)/1e4, Math.round(p[1]/CH*1e4)/1e4];});});
+}
+function liveSig(){   // firma rápida para enviar solo cuando cambia
+  var n=userStrokes.length,tot=0,i,lp='';
+  for(i=0;i<n;i++)tot+=userStrokes[i].length;
+  var last=userStrokes[n-1]; if(last&&last.length){var q=last[last.length-1];lp=Math.round(q[0])+','+Math.round(q[1]);}
+  return n+':'+tot+':'+lp;
+}
+function renderLive(payload){
+  if(anim){cancelAnimationFrame(anim);anim=null;}
+  ctx.clearRect(0,0,CW,CH);
+  if(!payload||!payload.s)return;
+  brushStyle();var bw=brushWidth();
+  payload.s.forEach(function(s){
+    if(!s.length)return; ctx.lineWidth=bw;
+    if(s.length===1){var p=s[0];ctx.beginPath();ctx.arc(p[0]*CW,p[1]*CH,bw/2,0,7);ctx.fillStyle='#fff';ctx.fill();return;}
+    ctx.beginPath();ctx.moveTo(s[0][0]*CW,s[0][1]*CH);
+    for(var i=1;i<s.length;i++)ctx.lineTo(s[i][0]*CW,s[i][1]*CH);
+    ctx.stroke();
+  });
+}
+function showCode(code){   // el número que ve el espectador (código de emparejamiento disfrazado)
+  var d=document.createElement('div');d.textContent=code;
+  d.style.cssText='position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:50;color:#fff;font:700 66px -apple-system,sans-serif;letter-spacing:8px;pointer-events:none;';
+  document.body.appendChild(d);
+  document.addEventListener('pointerdown',function(){d.style.transition='opacity .4s';d.style.opacity='0';setTimeout(function(){if(d.parentNode)d.parentNode.removeChild(d);},450);},{once:true});
+}
+function startEmisor(){
+  var g=document.getElementById('gear');if(g)g.style.display='none';
+  resize();keepAwake();
+  document.addEventListener('pointerdown',function(){keepAwake();goFullscreen();});
+  var code=(''+Math.floor(1000+Math.random()*9000));
+  showCode(code);
+  fbInit().then(function(ok){ if(!ok)return;
+    var ref=fbDb.ref('rooms/'+code+'/live'),lastSig='';
+    setInterval(function(){ var sig=liveSig(); if(sig!==lastSig){lastSig=sig; ref.set({s:normStrokes(),t:Date.now()});} },180);
+  });
+}
+function connectEspia(code){
+  var b=document.getElementById('brushzone');if(b)b.style.display='none';
+  fbInit().then(function(ok){ if(!ok)return;
+    fbDb.ref('rooms/'+code+'/live').on('value',function(snap){ renderLive(snap.val()); });
+  });
+}
+function showKeypad(){   // "calculadora" para teclear el código y conectar
+  var wrap=document.createElement('div');
+  wrap.style.cssText='position:fixed;inset:0;z-index:60;background:#000;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;';
+  var disp=document.createElement('div');disp.style.cssText='color:#fff;font:600 46px -apple-system,sans-serif;min-height:54px;letter-spacing:4px;';
+  var grid=document.createElement('div');grid.style.cssText='display:grid;grid-template-columns:repeat(3,78px);gap:12px;';
+  var val='';function upd(){disp.textContent=val||'····';}
+  ['1','2','3','4','5','6','7','8','9','C','0','='].forEach(function(k){
+    var bt=document.createElement('button');bt.textContent=k;
+    bt.style.cssText='height:78px;border-radius:50%;border:0;background:'+(k==='='?'#0a84ff':'#1c1c1e')+';color:#fff;font:600 30px -apple-system,sans-serif;';
+    bt.onclick=function(){ if(k==='C')val=''; else if(k==='='){ if(/^\d{3,6}$/.test(val)){document.body.removeChild(wrap);connectEspia(val);} } else if(val.length<6)val+=k; upd(); };
+    grid.appendChild(bt);
+  });
+  upd();wrap.appendChild(disp);wrap.appendChild(grid);document.body.appendChild(wrap);
+}
+window.__renderLive=renderLive;   // pruebas
+function startEspia(code){
+  var g=document.getElementById('gear');if(g)g.style.display='none';
+  resize();
+  if(code&&/^\d{3,6}$/.test(code)) connectEspia(code);   // ?espia=1234 conecta directo
+  else showKeypad();                                     // ?espia=1 abre la "calculadora"
+}
+
 resize();
-if(RX_ROOM){ startReceiver(RX_ROOM); }                  // este móvil = receptor (espectador)
+if(RX_ROOM){ startReceiver(RX_ROOM); }                  // receptor: dibuja lo que le envían
+else if(EMISOR){ startEmisor(); }                       // espectador: envía en vivo lo que dibuja
+else if(ESPIA!=null){ startEspia(ESPIA); }              // mago: ve en vivo lo que dibuja el espectador
 else if(lsGet(LS_ONB)==='1') startApp();
 else showOnboard();
 })();
