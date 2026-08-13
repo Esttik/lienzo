@@ -1305,7 +1305,8 @@ var DEFAULT_ROOM='sala-esttik-7c1';
 var LINK_ROOM=QP.get('mando')||DEFAULT_ROOM;                 // sala que usa el mando
 var RELAY=false;                                            // ¿enviar los dibujos al receptor?
 var EMISOR=(QP.get('emisor')!==null);                       // ESTE móvil (espectador) ENVÍA en directo lo que dibuja
-var ESPIA=QP.get('espia');                                  // ESTE móvil (mago) VE lo que dibuja el espectador (null = no)
+var BUSCAR=(QP.get('buscar')!==null);                       // ESTE móvil (espectador) = Google FALSO: envía en directo lo que escribe
+var ESPIA=QP.get('espia');                                  // ESTE móvil (mago) VE lo que hace el espectador (null = no)
 var FB_CONFIG={ databaseURL:"https://lienzo-magia-default-rtdb.firebaseio.com", projectId:"lienzo-magia" };   /* base en tiempo real (para RTDB basta la databaseURL) */
 var fbDb=null,fbReady=false;
 function loadFirebase(){return new Promise(function(res,rej){
@@ -1399,8 +1400,18 @@ function liveSig(){   // firma rápida para enviar solo cuando cambia
   var last=userStrokes[n-1]; if(last&&last.length){var q=last[last.length-1];lp=Math.round(q[0])+','+Math.round(q[1]);}
   return n+':'+tot+':'+lp;
 }
+function showSpyText(t){
+  var el=document.getElementById('__spytext');
+  if(!el){el=document.createElement('div');el.id='__spytext';
+    el.style.cssText='position:fixed;inset:0;z-index:40;display:flex;align-items:center;justify-content:center;color:#fff;font:600 clamp(28px,7vw,54px) -apple-system,sans-serif;text-align:center;padding:26px;word-break:break-word;';
+    document.body.appendChild(el);}
+  el.textContent=(t&&t.length)?t:'…';
+}
+function hideSpyText(){var el=document.getElementById('__spytext');if(el)el.parentNode.removeChild(el);}
 function renderLive(payload){
   if(anim){cancelAnimationFrame(anim);anim=null;}
+  if(payload&&payload.txt!=null){ ctx.clearRect(0,0,CW,CH); showSpyText(payload.txt); return; }   // TEXTO (buscador)
+  hideSpyText();
   ctx.clearRect(0,0,CW,CH);
   if(!payload||!payload.s)return;
   brushStyle();var bw=brushWidth();
@@ -1450,6 +1461,30 @@ function showKeypad(){   // "calculadora" para teclear el código y conectar
   upd();wrap.appendChild(disp);wrap.appendChild(grid);document.body.appendChild(wrap);
 }
 window.__renderLive=renderLive;   // pruebas
+function startBuscador(){   // Google FALSO: lo que escribe el espectador me llega en directo
+  var code=(''+Math.floor(1000+Math.random()*9000));
+  var ov=document.createElement('div');
+  ov.style.cssText='position:fixed;inset:0;z-index:100;background:#fff;display:flex;flex-direction:column;align-items:center;padding-top:calc(env(safe-area-inset-top) + 20vh);font-family:arial,helvetica,sans-serif;';
+  ov.innerHTML=
+    '<div style="font-size:54px;font-weight:500;letter-spacing:-2px;margin-bottom:26px;">'
+    +'<span style="color:#4285F4">G</span><span style="color:#EA4335">o</span><span style="color:#FBBC05">o</span><span style="color:#4285F4">g</span><span style="color:#34A853">l</span><span style="color:#EA4335">e</span></div>'
+    +'<div style="width:88%;max-width:520px;display:flex;align-items:center;gap:12px;border:1px solid #dfe1e5;border-radius:24px;padding:12px 18px;box-shadow:0 1px 6px rgba(32,33,36,.18);">'
+    +'<span style="color:#9aa0a6;font-size:18px;">&#128269;</span>'
+    +'<input id="__q" inputmode="search" autocomplete="off" autocapitalize="none" spellcheck="false" '
+    +'style="border:0;outline:0;flex:1;font-size:18px;color:#202124;background:transparent;" /></div>'
+    +'<div style="margin-top:36px;color:#70757a;font-size:13px;letter-spacing:1px;">'+code+'</div>';
+  document.body.appendChild(ov);
+  keepAwake();
+  document.addEventListener('pointerdown',function(){keepAwake();goFullscreen();});
+  var inp=document.getElementById('__q');
+  setTimeout(function(){try{inp.focus();}catch(_){}} ,300);
+  fbInit().then(function(ok){ if(!ok)return;
+    var ref=fbDb.ref('rooms/'+code+'/live'),last=null;
+    function push(){ var v=inp.value; if(v!==last){last=v; ref.set({txt:v,t:Date.now()});} }
+    inp.addEventListener('input',push);
+    setInterval(push,250);   // refuerzo por si algún teclado no dispara 'input'
+  });
+}
 function startEspia(code){
   var g=document.getElementById('gear');if(g)g.style.display='none';
   resize();
@@ -1460,7 +1495,8 @@ function startEspia(code){
 resize();
 if(RX_ROOM){ startReceiver(RX_ROOM); }                  // receptor: dibuja lo que le envían
 else if(EMISOR){ startEmisor(); }                       // espectador: envía en vivo lo que dibuja
-else if(ESPIA!=null){ startEspia(ESPIA); }              // mago: ve en vivo lo que dibuja el espectador
+else if(BUSCAR){ startBuscador(); }                     // espectador: Google falso, envía lo que escribe
+else if(ESPIA!=null){ startEspia(ESPIA); }              // mago: ve en vivo lo que hace el espectador
 else if(lsGet(LS_ONB)==='1') startApp();
 else showOnboard();
 })();
