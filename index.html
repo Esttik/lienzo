@@ -6,6 +6,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Stories">
 <title>Stories</title>
 <style>
   *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;}
@@ -1323,6 +1324,9 @@ function fbInit(){
 var _wl=null;
 function keepAwake(){try{if('wakeLock' in navigator)navigator.wakeLock.request('screen').then(function(w){_wl=w;}).catch(function(){});}catch(_){}}
 document.addEventListener('visibilitychange',function(){if(!document.hidden)keepAwake();});
+/* pantalla completa REAL donde el sistema lo permite (Android/iPad): requiere un gesto del usuario.
+   En iPhone Safari NO existe (Apple no lo permite en pestaña); ahí se usa "Añadir a inicio". */
+function goFullscreen(){var el=document.documentElement,fn=el.requestFullscreen||el.webkitRequestFullscreen;if(fn){try{fn.call(el);}catch(_){}}}
 /* RECEPTOR: dibuja lo que llega */
 function rxDraw(c){
   if(!c)return;
@@ -1359,7 +1363,7 @@ function startReceiver(room){
   var bz=document.getElementById('brushzone');if(bz)bz.style.display='none';   // sin barra de grosor: el trazo del reveal NO cambia
   brushFactor=0.42;                                                            // grosor fijo y controlado (evita trazos demasiado gordos)
   resize();keepAwake();
-  document.addEventListener('pointerdown',keepAwake);                  // 1er toque asegura la pantalla despierta
+  document.addEventListener('pointerdown',function(){keepAwake();goFullscreen();});   // 1er toque: pantalla despierta + pantalla completa real (Android/iPad)
   fbInit().then(function(ok){ if(!ok)return;
     var ref=fbDb.ref('rooms/'+room+'/cmd');
     ref.once('value').then(function(base){
