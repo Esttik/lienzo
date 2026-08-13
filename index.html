@@ -882,7 +882,9 @@ function diceConsider(ds,isFinal){
 function commitDice(ds){
   if(!armed)return;
   armed=false;clearTimeout(listenTimer);clearTimeout(commitTimer);pendingKey=null;
-  setCue('off');stopMic();drawDice(ds);
+  setCue('off');stopMic();
+  if(RELAY) rxSend({t:'dice',v:ds.slice(0,3)});   // MANDO: envía los dados al móvil del espectador
+  drawDice(ds);
 }
 window.__drawDice=drawDice; window.__parseDice=parseDice;   // pruebas
 var DICE_GRAMMAR=JSON.stringify(['uno','dos','tres','cuatro','cinco','seis','el','la','y','un','una','[unk]']);
@@ -945,7 +947,9 @@ function parseCard(text){
 function commitCard(c){
   if(!armed)return;
   armed=false;clearTimeout(listenTimer);clearTimeout(commitTimer);pendingKey=null;
-  setCue('off');stopMic();drawCard(c.r,c.s);
+  setCue('off');stopMic();
+  if(RELAY) rxSend({t:'card',r:c.r,s:c.s});   // MANDO: envía la carta al móvil del espectador
+  drawCard(c.r,c.s);
 }
 window.__drawCard=drawCard; window.__parseCard=parseCard;
 var CARD_GRAMMAR=JSON.stringify(['as','dos','tres','cuatro','cinco','seis','siete','ocho','nueve','diez','jota','reina','dama','rey','sota','caballo','corazon','corazones','diamante','diamantes','rombo','rombos','trebol','treboles','pica','picas','espada','espadas','de','el','la','y','[unk]']);
@@ -1324,11 +1328,36 @@ function rxDraw(c){
   if(!c)return;
   if(c.t==='word')drawObject(c.v);
   else if(c.t==='num')drawNumber(c.v);
+  else if(c.t==='dice')drawDiceRemote(c.v);
+  else if(c.t==='card')drawCardRemote(c.r,c.s);
   else if(c.t==='clear'){clearCanvas();userStrokes=[];}
 }
 window.__rxDraw=rxDraw;   // pruebas
+/* el receptor dibuja SUS PROPIOS cuadrados/rectángulo (el espectador no dibuja nada) */
+function rxSquare(cx,cy,sz){
+  var h=sz/2,pts=[[cx-h,cy-h],[cx+h,cy-h],[cx+h,cy+h],[cx-h,cy+h],[cx-h,cy-h]],s=[],i,t;
+  for(i=0;i<pts.length-1;i++){var a=pts[i],b=pts[i+1];for(t=0;t<1;t+=0.12)s.push([a[0]+(b[0]-a[0])*t,a[1]+(b[1]-a[1])*t]);}
+  s.push(pts[0]);curWarp=makeWarp();userStrokes.push(prep(s));
+}
+function drawDiceRemote(nums){
+  if(!nums||!nums.length)return;
+  clearCanvas();userStrokes=[];
+  var sz=Math.min(CW,CH)*0.24,cy=CH*0.5,xs=[CW*0.28,CW*0.5,CW*0.72];
+  for(var i=0;i<3;i++) rxSquare(xs[i],cy,sz);   // 3 dados hechos a mano
+  drawDice(nums.slice(0,3));                     // pone los puntos dentro de cada cuadrado
+}
+function drawCardRemote(r,s){
+  clearCanvas();userStrokes=[];
+  var w=Math.min(CW,CH)*0.5,h=Math.min(w*1.4,CH*0.72),cx=CW*0.5,cy=CH*0.5;
+  var pts=[[cx-w/2,cy-h/2],[cx+w/2,cy-h/2],[cx+w/2,cy+h/2],[cx-w/2,cy+h/2],[cx-w/2,cy-h/2]],st=[],i,t;
+  for(i=0;i<pts.length-1;i++){var a=pts[i],b=pts[i+1];for(t=0;t<1;t+=0.07)st.push([a[0]+(b[0]-a[0])*t,a[1]+(b[1]-a[1])*t]);}
+  st.push(pts[0]);curWarp=makeWarp();userStrokes.push(prep(st));   // rectángulo hecho a mano
+  drawCard(r,s);                                                   // valor + palo dentro
+}
 function startReceiver(room){
   var g=document.getElementById('gear');if(g)g.style.display='none';   // sin ajustes visibles en el móvil del espectador
+  var bz=document.getElementById('brushzone');if(bz)bz.style.display='none';   // sin barra de grosor: el trazo del reveal NO cambia
+  brushFactor=0.42;                                                            // grosor fijo y controlado (evita trazos demasiado gordos)
   resize();keepAwake();
   document.addEventListener('pointerdown',keepAwake);                  // 1er toque asegura la pantalla despierta
   fbInit().then(function(ok){ if(!ok)return;
