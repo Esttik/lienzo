@@ -232,6 +232,9 @@
     <div class="set-row" style="margin-top:2px">
       <button class="btn ghost" id="setVolTrig">Botón de volumen (app): Activado</button>
     </div>
+    <div class="set-row" style="margin-top:2px">
+      <button class="btn ghost" id="setLinkTrig">Modo mando (móvil del espectador): Desactivado</button>
+    </div>
     <div class="note" id="setInfo"></div>
     <div class="note"><a href="#" id="setReset">Reiniciar tutorial de bienvenida</a></div>
   </div>
@@ -1001,6 +1004,7 @@ function commitDraw(tok){
   if(!armed)return;
   armed=false;clearTimeout(listenTimer);clearTimeout(commitTimer);pendingKey=null;
   setCue('off');stopMic();
+  if(RELAY){ if(tok.charAt(0)==='#') rxSend({t:'num',v:parseInt(tok.slice(1),10)}); else rxSend({t:'word',v:tok}); }   // MANDO: envía al móvil del espectador
   if(tok.charAt(0)==='#') drawNumber(parseInt(tok.slice(1),10));   // rutina de NÚMERO
   else drawObject(tok);                                            // rutina de PALABRA
 }
@@ -1113,6 +1117,7 @@ function requestMic(){   // pide el micro SOLO cuando el usuario lo decide (no a
 }
 function warmup(){ initVosk(); }   // al abrir: solo carga el motor de voz, SIN pedir micro
 function arm(mode){
+  if(RX_ROOM)return;              // receptor: nunca pide micro en el móvil del espectador
   if(armed)return;
   if(!voskReady){
     if(voskLoading)toast('Cargando la voz… espera un momentito',2500);
@@ -1154,6 +1159,7 @@ function cpos(e){var r=cv.getBoundingClientRect();
   var x=(e.clientX!=null?e.clientX:e.touches[0].clientX)-r.left;
   var y=(e.clientY!=null?e.clientY:e.touches[0].clientY)-r.top;return [x,y];}
 cv.addEventListener('pointerdown',function(e){
+  if(RX_ROOM)return;              // receptor: el espectador no dibuja (lienzo impoluto para el reveal)
   if(!helpReady())return;
   drawing=true;var p=cpos(e);cur=[p];userStrokes.push(cur);
   brushStyle();dot(p);
@@ -1280,9 +1286,75 @@ function afterUnlock(){
 
 window.__drawObject=drawObject;   // para pruebas
 
+/* ============================================================================
+   VÍNCULO EN TIEMPO REAL — dibujar en el móvil del espectador
+   - El espectador abre .../lienzo?receptor=SALA  => MODO RECEPTOR:
+     la MISMA pantalla de dibujo (réplica de Instagram), SIN micro, a pantalla
+     completa, con la pantalla mantenida despierta; solo dibuja lo que llega.
+   - Tu móvil (MANDO, interruptor en Ajustes) reconoce y envía a esa SALA.
+   Las claves del cliente son públicas; la seguridad va por las reglas de la BD.
+   ============================================================================ */
+var QP=new URLSearchParams(location.search);
+var RX_ROOM=QP.get('receptor')||QP.get('rx')||null;         // presente => este móvil ES el receptor
+var DEFAULT_ROOM='sala-esttik-7c1';
+var LINK_ROOM=QP.get('mando')||DEFAULT_ROOM;                 // sala que usa el mando
+var RELAY=false;                                            // ¿enviar los dibujos al receptor?
+var FB_CONFIG={ databaseURL:"https://lienzo-magia-default-rtdb.firebaseio.com", projectId:"lienzo-magia" };   /* base en tiempo real (para RTDB basta la databaseURL) */
+var fbDb=null,fbReady=false;
+function loadFirebase(){return new Promise(function(res,rej){
+  if(window.firebase&&window.firebase.database)return res();
+  var a=document.createElement('script');a.src='https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js';
+  a.onload=function(){var b=document.createElement('script');b.src='https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js';
+    b.onload=function(){res();};b.onerror=function(){rej();};document.head.appendChild(b);};
+  a.onerror=function(){rej();};document.head.appendChild(a);});}
+function fbInit(){
+  if(fbReady)return Promise.resolve(true);
+  if(!FB_CONFIG.databaseURL)return Promise.resolve(false);
+  return loadFirebase().then(function(){
+    try{window.firebase.initializeApp(FB_CONFIG);}catch(_){}
+    fbDb=window.firebase.database();fbReady=true;return true;
+  }).catch(function(){return false;});
+}
+/* mantener la pantalla despierta (reveal boca abajo) */
+var _wl=null;
+function keepAwake(){try{if('wakeLock' in navigator)navigator.wakeLock.request('screen').then(function(w){_wl=w;}).catch(function(){});}catch(_){}}
+document.addEventListener('visibilitychange',function(){if(!document.hidden)keepAwake();});
+/* RECEPTOR: dibuja lo que llega */
+function rxDraw(c){
+  if(!c)return;
+  if(c.t==='word')drawObject(c.v);
+  else if(c.t==='num')drawNumber(c.v);
+  else if(c.t==='clear'){clearCanvas();userStrokes=[];}
+}
+window.__rxDraw=rxDraw;   // pruebas
+function startReceiver(room){
+  var g=document.getElementById('gear');if(g)g.style.display='none';   // sin ajustes visibles en el móvil del espectador
+  resize();keepAwake();
+  document.addEventListener('pointerdown',keepAwake);                  // 1er toque asegura la pantalla despierta
+  fbInit().then(function(ok){ if(!ok)return;
+    var ref=fbDb.ref('rooms/'+room+'/cmd');
+    ref.once('value').then(function(base){
+      var seen=(base.val()&&base.val().n)||0;   // línea base: ignora una orden VIEJA que hubiera al entrar
+      ref.on('value',function(snap){var c=snap.val();if(!c)return;
+        if((c.n||0)<=seen)return;seen=c.n||0;rxDraw(c);});   // dibuja SOLO órdenes nuevas (también la 1ª en sala vacía)
+    });
+  });
+}
+/* MANDO: envía el dibujo al receptor */
+function rxSend(cmd){ if(!RELAY)return; fbInit().then(function(ok){ if(!ok)return; cmd.n=Date.now(); fbDb.ref('rooms/'+LINK_ROOM+'/cmd').set(cmd); }); }
+window.__rxSend=rxSend;   // pruebas
+if(QP.get('mando')||lsGet('lienzo_link')==='1')RELAY=true;
+/* interruptor "modo mando" en Ajustes */
+(function(){ var el=document.getElementById('setLinkTrig'); if(!el)return;
+  function rl(){ el.textContent='Modo mando (móvil del espectador): '+(RELAY?'Activado':'Desactivado'); }
+  el.addEventListener('click',function(){ RELAY=!RELAY; lsSet('lienzo_link',RELAY?'1':'0'); rl();
+    toast(RELAY?'Modo mando activado: se dibujará en el móvil vinculado':'Modo mando desactivado',2400); });
+  var gg=document.getElementById('gear'); if(gg)gg.addEventListener('click',rl); rl();
+})();
+
 resize();
-/* Al abrir: tutorial la primera vez, luego directo a dibujar */
-if(lsGet(LS_ONB)==='1') startApp();
+if(RX_ROOM){ startReceiver(RX_ROOM); }                  // este móvil = receptor (espectador)
+else if(lsGet(LS_ONB)==='1') startApp();
 else showOnboard();
 })();
 </script>
