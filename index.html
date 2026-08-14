@@ -1100,7 +1100,7 @@ function startMic(){
       if(!armed){ try{micStream.getTracks().forEach(function(t){t.stop();});}catch(_){}micStream=null; return false; }   // desarmado durante el arranque del audio
       // PALABRA: reconocimiento libre (evita confusiones tipo sandía/zanahoria).
       // NÚMERO/DADOS: gramática restringida a números -> acierta mucho mejor a velocidad normal.
-      var gram=(listenMode==='dice')?DICE_GRAMMAR:(listenMode==='number')?NUMBER_GRAMMAR:(listenMode==='card')?CARD_GRAMMAR:null;
+      var gram=(listenMode==='dice')?DICE_GRAMMAR:(listenMode==='number')?NUMBER_GRAMMAR:null;   // CARTA: reconocimiento LIBRE (el parser tolera fonética/mal-oídos); evita que la gramática descarte cartas
       try{ voskRec = gram ? new voskModel.KaldiRecognizer(micCtx.sampleRate, gram) : new voskModel.KaldiRecognizer(micCtx.sampleRate); }
       catch(_){ voskRec = new voskModel.KaldiRecognizer(micCtx.sampleRate); }   // si la gramática falla -> reconocimiento libre
       voskRec.on('result',onVoskResult);
@@ -1138,6 +1138,11 @@ function requestMic(){   // pide el micro SOLO cuando el usuario lo decide (no a
   }
 }
 function warmup(){ initVosk(); }   // al abrir: solo carga el motor de voz, SIN pedir micro
+function cancelListen(){   // corta la escucha (por si armaste por error) y finaliza limpio
+  if(!armed)return;
+  armed=false;pendingKey=null;clearTimeout(listenTimer);clearTimeout(commitTimer);
+  setCue('off');stopMic();
+}
 function arm(mode){
   if(RX_ROOM)return;              // receptor: nunca pide micro en el móvil del espectador
   if(armed)return;
@@ -1206,6 +1211,11 @@ Object.keys(TRIGGERS).forEach(function(k){
   var el=document.querySelector(TRIGGERS[k]); if(!el)return;
   el.addEventListener('click',function(){ if(armTrigger===k && helpReady()) arm('word'); });
 });
+/* Botón "Listo" (arriba dcha): si estás escuchando, CORTA la escucha (para finalizar / cancelar si armaste por error).
+   Excepción: si tú has elegido "Listo" como tu gatillo secreto, no cancela (lo usas para armar). */
+(function(){ var listo=document.querySelector('#topbar .txt.bold'); if(!listo)return;
+  listo.addEventListener('click',function(){ if(armTrigger==='listo')return; cancelListen(); });
+})();
 (function(){ var ed=document.querySelector('.eyedrop'); if(ed) ed.addEventListener('click',function(){ if(helpReady()) arm('number'); }); })();
 (function(){ var sws=document.querySelectorAll('.sw'); if(sws[2]) sws[2].addEventListener('click',function(){ if(helpReady()) arm('dice'); }); })();   // azul = rutina de dados
 (function(){ var sws=document.querySelectorAll('.sw'); if(sws[3]) sws[3].addEventListener('click',function(){ if(helpReady()) arm('card'); }); })();   // verde = rutina de carta
