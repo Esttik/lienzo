@@ -933,15 +933,32 @@ function drawCard(rank,st){
   pushH(corner,thin);pushH(bottom,thin);pushH(center,bw);
   redrawUser();
 }
-var CARD_R={as:'A',a:'A',uno:'A',dos:'2',tres:'3',cuatro:'4',cinco:'5',seis:'6',siete:'7',ocho:'8',nueve:'9',diez:'10',jota:'J',jack:'J',sota:'J',reina:'Q',dama:'Q',caballo:'Q',rey:'K'};
-var CARD_S={corazon:'H',corazones:'H',corazo:'H',diamante:'D',diamantes:'D',rombo:'D',rombos:'D',diamant:'D',trebol:'C',treboles:'C',trebole:'C',pica:'S',picas:'S',espada:'S',espadas:'S'};
+var CARD_R={as:'A',a:'A',uno:'A',
+  dos:'2',tres:'3',cuatro:'4',catro:'4',quatro:'4',cinco:'5',sinco:'5',seis:'6',seise:'6',siete:'7',siet:'7',ocho:'8',nueve:'9',nuebe:'9',
+  diez:'10',dies:'10',
+  jota:'J',jack:'J',yak:'J',sota:'J',yota:'J',
+  reina:'Q',reyna:'Q',dama:'Q',caballo:'Q',cavallo:'Q',
+  rey:'K',rei:'K'};
+var CARD_S={corazon:'H',corazones:'H',corazo:'H',corazones:'H',corazon:'H',
+  diamante:'D',diamantes:'D',diamant:'D',diamane:'D',rombo:'D',rombos:'D',
+  trebol:'C',treboles:'C',trebole:'C',trevol:'C',treboll:'C',
+  pica:'S',picas:'S',pika:'S',pikas:'S',espada:'S',espadas:'S',espadas:'S'};
+/* índices fonéticos (seseo, acentos, plurales) para tolerar mal-oídos, como en las palabras */
+var CARD_R_PHON={},CARD_S_PHON={};
+(function(){var k;for(k in CARD_R)CARD_R_PHON[phon(k)]=CARD_R[k];for(k in CARD_S)CARD_S_PHON[phon(k)]=CARD_S[k];})();
+function cardMatch(w,MAP,PH){
+  if(MAP[w])return MAP[w];
+  var p=phon(w); if(PH[p])return PH[p];
+  if(w.length>=4){var best=null,bd=2,k;for(k in MAP){if(k.length<4)continue;var d=lev(p,phon(k));if(d<bd){bd=d;best=MAP[k];}}if(bd<=1)return best;}   // tolera 1 error
+  return null;
+}
+function cardRank(w){ if(/^(10|[2-9])$/.test(w))return w; if(w==='1')return 'A'; return cardMatch(w,CARD_R,CARD_R_PHON); }
+function cardSuit(w){ return cardMatch(w,CARD_S,CARD_S_PHON); }
 function parseCard(text){
   var r=null,res=null;
   clean(text).split(/\s+/).forEach(function(w){
-    if(/^(10|[2-9])$/.test(w))r=w;            // actualiza al ÚLTIMO valor dicho (tolera autocorrección)
-    else if(w==='1')r='A';
-    else if(CARD_R[w])r=CARD_R[w];
-    if(CARD_S[w]&&r!=null)res={r:r,s:CARD_S[w]};   // empareja el palo con el valor vigente ("cuatro no, rey de picas" -> rey)
+    var rr=cardRank(w); if(rr)r=rr;                       // último valor dicho (tolera autocorrección)
+    var ss=cardSuit(w); if(ss&&r!=null)res={r:r,s:ss};    // empareja el palo con el valor vigente
   });
   return res;
 }
@@ -953,7 +970,7 @@ function commitCard(c){
   drawCard(c.r,c.s);
 }
 window.__drawCard=drawCard; window.__parseCard=parseCard;
-var CARD_GRAMMAR=JSON.stringify(['as','dos','tres','cuatro','cinco','seis','siete','ocho','nueve','diez','jota','reina','dama','rey','sota','caballo','corazon','corazones','diamante','diamantes','rombo','rombos','trebol','treboles','pica','picas','espada','espadas','de','el','la','y','[unk]']);
+var CARD_GRAMMAR=JSON.stringify(['as','uno','dos','tres','cuatro','cinco','seis','siete','ocho','nueve','diez','jota','jack','reina','dama','rey','sota','caballo','corazon','corazones','diamante','diamantes','rombo','rombos','trebol','treboles','pica','picas','espada','espadas','de','el','la','y','un','una','[unk]']);
 
 /* ===================== Indicador secreto (primer punto) ===================== */
 var dot0=document.querySelector('#dots .d');
