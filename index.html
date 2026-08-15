@@ -32,20 +32,15 @@
   /* ---- Barra lateral del pincel (réplica Instagram) ---- */
   #brushzone{position:absolute;left:0;top:0;bottom:0;width:46px;z-index:7;touch-action:none;}
   /* cuña: ancha arriba (pincel gordo), fina abajo (pincel fino) */
-  #brushwedge{position:absolute;left:0;top:0;pointer-events:none;overflow:visible;opacity:.5;
-    transition:transform .25s cubic-bezier(.32,.72,0,1),opacity .25s;}
-  /* manija: PASTILLA en reposo; al arrastrar pasa a círculo (tamaño = grosor real, vía JS) */
-  #sidetab{position:absolute;width:11px;height:27px;border-radius:7px;background:#fff;transform:translate(-50%,-50%);
+  #brushwedge{position:absolute;left:0;top:0;pointer-events:none;overflow:visible;
+    transition:transform .3s cubic-bezier(.32,.72,0,1),opacity .3s;}
+  /* manija: CÍRCULO (tamaño = grosor real, vía JS) que se esconde junto a la barra */
+  #sidetab{position:absolute;border-radius:50%;background:#fff;transform:translate(-50%,-50%);
     box-shadow:0 0 0 1.5px rgba(0,0,0,.18),0 1px 5px rgba(0,0,0,.45);
-    transition:transform .25s cubic-bezier(.32,.72,0,1),width .18s,height .18s,border-radius .18s;}
-  /* al tocar: la cuña y la manija salen a la derecha (como Instagram) */
-  #brushzone.dragging #brushwedge{opacity:1;transform:translateX(9px);}
-  #brushzone.dragging #sidetab{transform:translate(-50%,-50%) translateX(9px);}
-  /* aro central de previsualización del grosor (aparece al ajustar, como Instagram) */
-  #brushdot{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
-    border:2px solid rgba(255,255,255,.92);border-radius:50%;pointer-events:none;opacity:0;
-    transition:opacity .15s;z-index:6;}
-  #brushzone.dragging ~ #brushdot{opacity:1;}
+    transition:transform .3s cubic-bezier(.32,.72,0,1),opacity .3s;}
+  /* en reposo: la cuña y el círculo se esconden metidos junto a la barra */
+  #brushzone.tucked #brushwedge{transform:translateX(-6px);opacity:.6;}
+  #brushzone.tucked #sidetab{transform:translate(-50%,-50%) translateX(-6px);opacity:.7;}
 
   /* ---- Paleta inferior (réplica Instagram) ---- */
   #palette{display:flex;align-items:center;justify-content:space-between;
@@ -155,7 +150,6 @@
       <svg id="brushwedge"></svg>
       <div id="sidetab"></div>
     </div>
-    <div id="brushdot"></div>
   </div>
 
   <div id="palette">
@@ -627,37 +621,34 @@ function layoutBrush(){
   wedge.innerHTML='<path d="M'+(BR_CX-wTop/2)+' '+b.top+
     ' L'+(BR_CX+wTop/2)+' '+b.top+
     ' L'+(BR_CX+wBot/2)+' '+b.bottom+
-    ' L'+(BR_CX-wBot/2)+' '+b.bottom+' Z" fill="rgba(255,255,255,0.6)"/>';
+    ' L'+(BR_CX-wBot/2)+' '+b.bottom+' Z" fill="rgba(255,255,255,0.5)"/>';
   var d=brushWidth();
+  tab.style.width=d+'px';tab.style.height=d+'px';       // círculo = grosor real del pincel
   tab.style.left=BR_CX+'px';
   tab.style.top=(b.top+(1-brushFactor)*range)+'px';
-  var zone=document.getElementById('brushzone'),dot=document.getElementById('brushdot');
-  if(zone&&zone.classList.contains('dragging')){          // arrastrando: círculo = grosor real + aro central
-    tab.style.width=d+'px';tab.style.height=d+'px';tab.style.borderRadius='50%';
-    if(dot){dot.style.width=d+'px';dot.style.height=d+'px';}
-  }else{                                                   // reposo: pastilla (lo pinta el CSS)
-    tab.style.width='';tab.style.height='';tab.style.borderRadius='';
-  }
 }
 (function brushSlider(){
   var zone=document.getElementById('brushzone'),st=document.getElementById('stage');
   if(!zone||!st)return;
-  var dragging=false,startY=0,moved=0;
+  var dragging=false,startY=0,moved=0,tuckT=null;
+  zone.classList.add('tucked');                              // reposo: escondido junto a la barra
+  function reveal(){if(tuckT){clearTimeout(tuckT);tuckT=null;}zone.classList.remove('tucked');}
+  function tuckSoon(ms){if(tuckT)clearTimeout(tuckT);tuckT=setTimeout(function(){zone.classList.add('tucked');},ms);}
   function setFromY(cy){
     var r=st.getBoundingClientRect(),b=brushBand(r.height),range=b.bottom-b.top;
     brushFactor=Math.max(0,Math.min(1,1-((cy-r.top-b.top)/range)));
     lsSet('lienzo_brush',brushFactor.toFixed(3));layoutBrush();
   }
   zone.addEventListener('pointerdown',function(e){dragging=true;startY=e.clientY;moved=0;
-    zone.classList.add('dragging');                          // sale a la derecha + círculo + aro (como Instagram)
+    reveal();                                                // al pulsar: sale la animación (como Instagram)
     if(zone.setPointerCapture)zone.setPointerCapture(e.pointerId);setFromY(e.clientY);
     e.preventDefault();e.stopPropagation();},{passive:false});
   zone.addEventListener('pointermove',function(e){if(!dragging)return;moved+=Math.abs(e.clientY-startY);
     setFromY(e.clientY);e.preventDefault();e.stopPropagation();},{passive:false});
-  zone.addEventListener('pointerup',function(e){dragging=false;zone.classList.remove('dragging');layoutBrush();
+  zone.addEventListener('pointerup',function(e){dragging=false;tuckSoon(900);
     if(moved<6){var tab=document.getElementById('sidetab');if(tab)tab.click();} // toque = gatillo secreto si está elegido
     e.stopPropagation();});
-  zone.addEventListener('pointercancel',function(){dragging=false;zone.classList.remove('dragging');layoutBrush();});
+  zone.addEventListener('pointercancel',function(){dragging=false;tuckSoon(600);});
   setTimeout(layoutBrush,60);
 })();
 window.addEventListener('resize',layoutBrush);
