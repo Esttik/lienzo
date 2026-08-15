@@ -981,8 +981,9 @@ function setCue(state){
 
 /* ============ Voz: motor propio Vosk (NO usa el dictado de Apple => SIN tono) ============ */
 var VOSK_JS='https://cdn.jsdelivr.net/npm/vosk-browser@0.0.8/dist/vosk.js';
-var MODEL_URL='https://esttik.github.io/lienzo/vosk-model-small-es-0.3.tar.gz';            // modelo en TU repo (bajo tu control)
-var MODEL_URL_FALLBACK='https://ccoreilly.github.io/vosk-browser/models/vosk-model-small-es-0.3.tar.gz';   // respaldo si tu host fallara
+var MODEL_URL='https://esttik.github.io/lienzo/vosk-model-small-es-0.42.tar.gz';           // modelo 0.42 (más preciso), en TU repo
+var MODEL_URL_FALLBACK='https://esttik.github.io/lienzo/vosk-model-small-es-0.3.tar.gz';   // respaldo probado (0.3, tu repo)
+var MODEL_URL_FALLBACK2='https://ccoreilly.github.io/vosk-browser/models/vosk-model-small-es-0.3.tar.gz';   // último recurso externo
 var armed=false,listenTimer=null;
 var voskModel=null,voskRec=null,voskReady=false,voskLoading=false;
 var micStream=null,micCtx=null,micNode=null,micSrc=null,listening=false;
@@ -1002,8 +1003,10 @@ function initVosk(){
   if(voskReady||voskLoading)return;
   voskLoading=true;toast('Preparando la voz… (la primera vez tarda unos segundos)',0);
   loadVoskScript()
-    .then(function(){return window.Vosk.createModel(MODEL_URL).catch(function(){return window.Vosk.createModel(MODEL_URL_FALLBACK);});})   // primario propio; si falla, respaldo
-    .then(function(m){voskModel=m;voskReady=true;voskLoading=false;toast('🎤 Voz lista',1500);
+    .then(function(){return window.Vosk.createModel(MODEL_URL).then(function(m){window.__model='0.42';return m;})
+      .catch(function(){return window.Vosk.createModel(MODEL_URL_FALLBACK).then(function(m){window.__model='0.3';return m;});})     // 0.42 falla -> 0.3 propio
+      .catch(function(){return window.Vosk.createModel(MODEL_URL_FALLBACK2).then(function(m){window.__model='0.3-ext';return m;});});})  // -> 0.3 externo
+    .then(function(m){voskModel=m;voskReady=true;voskLoading=false;toast(DEBUG?('🎤 Voz lista · modelo '+(window.__model||'?')):'🎤 Voz lista',DEBUG?5000:1500);
       var ok=document.getElementById('micOk');if(ok)ok.classList.remove('hidden');})
     .catch(function(){voskLoading=false;toast('No se pudo cargar la voz. Revisa tu conexión a internet.',4500);});
 }
@@ -1097,12 +1100,13 @@ function onVoskPartial(message){           // PARCIAL
 function startMic(){
   if(listening)return Promise.resolve(true);
   if(!voskReady)return Promise.resolve(false);
-  return navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,channelCount:1}})
+  return navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true,channelCount:1}})   // AGC: normaliza el volumen (voz lejana/baja)
   .then(function(stream){
     if(!armed){ stream.getTracks().forEach(function(t){t.stop();}); return false; }   // se desarmó (p.ej. 2º plano) mientras se pedía el micro
     micStream=stream;
     if(micCtx&&micCtx.state!=='running'&&micCtx.state!=='suspended'){try{micCtx.close();}catch(_){}micCtx=null;}  // 'interrupted'/'closed' -> nuevo
-    if(!micCtx)micCtx=new (window.AudioContext||window.webkitAudioContext)();
+    if(!micCtx){ var AC=window.AudioContext||window.webkitAudioContext;
+      try{ micCtx=new AC({sampleRate:16000}); }catch(_){ micCtx=new AC(); } }   // 16 kHz = frecuencia nativa del modelo (menos remuestreo, más acierto)
     return (micCtx.state==='suspended'?micCtx.resume():Promise.resolve()).then(function(){
       if(!armed){ try{micStream.getTracks().forEach(function(t){t.stop();});}catch(_){}micStream=null; return false; }   // desarmado durante el arranque del audio
       // PALABRA: reconocimiento libre (evita confusiones tipo sandía/zanahoria).
