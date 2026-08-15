@@ -1019,7 +1019,7 @@ var AMBIG=(function(){var amb={},ks=[],k;for(k in BANK)ks.push(k);
     for(var j=0;j<ks.length;j++){ if(i===j)continue; var pb=phon(ks[j]);
       if(pb.length>pa.length && pf(pa,pb)>=pa.length-1){amb[ks[i]]=1;break;} } }
   return amb;})();
-var pendingKey=null,commitTimer=null,listenMode='word',diceBuffer=[],cardText='',heard={};   // 'word'/'number'/'dice'/'card'  |  heard = recuento para doble confirmación
+var pendingKey=null,commitTimer=null,listenMode='word',diceBuffer=[],cardText='';   // 'word'/'number'/'dice'/'card'
 function commitDraw(tok){
   if(!armed)return;
   armed=false;clearTimeout(listenTimer);clearTimeout(commitTimer);pendingKey=null;
@@ -1035,15 +1035,6 @@ function consider(tok,isFinal,ambiguous){
   if(tok===pendingKey)return;                       // ya esperando este mismo candidato
   pendingKey=tok;clearTimeout(commitTimer);
   commitTimer=setTimeout(function(){ if(armed&&pendingKey===tok)commitDraw(tok); },wait);
-}
-/* DOBLE CONFIRMACIÓN (números y objetos): dibuja solo cuando el MISMO resultado se ha
-   oído dos veces (el espectador lo dice y el mago lo confirma en voz alta). Cada frase
-   completa cuenta 1; un mal-oído suelto (28 vs 38) nunca llega a 2 -> no dibuja mal. */
-function considerDouble(tok){
-  if(!armed||!tok)return;
-  heard[tok]=(heard[tok]||0)+1;
-  if(DEBUG)toast('oído x'+heard[tok]+': '+(tok.charAt(0)==='#'?tok.slice(1):tok),1800);
-  if(heard[tok]>=2) commitDraw(tok);
 }
 function handleHeard(text,isFinal){
   if(listenMode==='dice'){
@@ -1066,15 +1057,17 @@ function handleHeard(text,isFinal){
     return;
   }
   if(listenMode==='number'){
-    if(!isFinal) return;                       // solo cuentan frases completas (no a mitad)
     var n=parseNumberES(text);
-    if(n!=null) considerDouble('#'+n);         // doble confirmación
+    if(n==null) return;
+    if(pendingKey&&pendingKey.charAt(0)==='#'){              // ¿decena esperando? + unidad dicha aparte -> 94
+      var pend=parseInt(pendingKey.slice(1),10);
+      if(pend%10===0&&pend>=20&&pend<=90&&n>=1&&n<=9){ consider('#'+(pend+n), isFinal, false); return; }
+    }
+    consider('#'+n, isFinal, (n%10===0&&n>=20&&n<=90));      // decena redonda: aguanta por si llegue la unidad
     return;
   }
-  // PALABRA / OBJETO
-  if(!isFinal) return;                         // solo cuentan frases completas
-  var obj=pickObject(text,true);
-  if(obj&&lookup(obj)) considerDouble(obj);    // doble confirmación
+  var obj=pickObject(text,isFinal);
+  if(obj&&lookup(obj)) consider(obj, isFinal, !!AMBIG[obj]);
 }
 var DEBUG=/[?&]debug/.test(location.search);   // abre con ?debug=1 para ver qué oye la voz
 function onVoskResult(message){            // FINAL
@@ -1158,7 +1151,7 @@ function arm(mode){
   listenMode=(mode==='number')?'number':(mode==='dice')?'dice':(mode==='card')?'card':'word';   // cuentagotas=número, azul=dados, verde=carta, blanco=palabra
   if(listenMode==='dice') diceBuffer=[];
   if(listenMode==='card') cardText='';
-  armed=true;pendingKey=null;heard={};clearTimeout(commitTimer);   // heard={}: recuento limpio para la doble confirmación
+  armed=true;pendingKey=null;clearTimeout(commitTimer);
   if(listenMode!=='dice'&&listenMode!=='card'){ clearCanvas(); userStrokes=[]; }   // dados y carta: conservan el dibujo del mago
   setCue('listening');
   startMic().then(function(ok){ if(!ok){armed=false;setCue('off');toast('No pude abrir el micrófono.',2500);} });
