@@ -41,6 +41,13 @@
   /* en reposo: la cuña y el círculo se esconden metidos junto a la barra */
   #brushzone.tucked #brushwedge{transform:translateX(-6px);opacity:.6;}
   #brushzone.tucked #sidetab{transform:translate(-50%,-50%) translateX(-6px);opacity:.7;}
+  /* Al dibujar: se ocultan TODOS los controles y queda solo el lienzo negro (como Instagram);
+     al levantar el dedo reaparecen con un fundido suave */
+  #topbar,#palette,#dots,#brushzone{transition:opacity .16s ease;}
+  #app.painting #topbar,#app.painting #palette,#app.painting #dots,#app.painting #brushzone{
+    opacity:0;pointer-events:none;}
+  #gear{transition:opacity .16s ease;}
+  #app.painting ~ #gear{opacity:0;pointer-events:none;}
 
   /* ---- Paleta inferior (réplica Instagram) ---- */
   #palette{display:flex;align-items:center;justify-content:space-between;
@@ -1183,6 +1190,7 @@ function cpos(e){var r=cv.getBoundingClientRect();
 cv.addEventListener('pointerdown',function(e){
   if(!helpReady())return;
   drawing=true;var p=cpos(e);cur=[p];userStrokes.push(cur);
+  document.getElementById('app').classList.add('painting');   // oculta controles mientras dibujas
   brushStyle();dot(p);
   try{cv.setPointerCapture(e.pointerId);}catch(_){}
   e.preventDefault();
@@ -1192,7 +1200,8 @@ cv.addEventListener('pointermove',function(e){
   brushStyle();ctx.beginPath();ctx.moveTo(prev[0],prev[1]);ctx.lineTo(p[0],p[1]);ctx.stroke();
   e.preventDefault();
 },{passive:false});
-function endDraw(){drawing=false;cur=null;}
+function endDraw(){drawing=false;cur=null;
+  document.getElementById('app').classList.remove('painting');} // al soltar, reaparecen los controles
 cv.addEventListener('pointerup',endDraw);
 cv.addEventListener('pointercancel',endDraw);
 
