@@ -233,9 +233,6 @@
     <div class="set-row" style="margin-top:2px">
       <button class="btn ghost" id="setVolTrig">Botón de volumen (app): Activado</button>
     </div>
-    <div class="set-row" style="margin-top:2px">
-      <button class="btn ghost" id="setLinkTrig">Modo mando (móvil del espectador): Desactivado</button>
-    </div>
     <div class="note" id="setInfo"></div>
     <div class="note"><a href="#" id="setReset">Reiniciar tutorial de bienvenida</a></div>
   </div>
@@ -884,7 +881,6 @@ function commitDice(ds){
   if(!armed)return;
   armed=false;clearTimeout(listenTimer);clearTimeout(commitTimer);pendingKey=null;
   setCue('off');stopMic();
-  if(RELAY) rxSend({t:'dice',v:ds.slice(0,3)});   // MANDO: envía los dados al móvil del espectador
   drawDice(ds);
 }
 window.__drawDice=drawDice; window.__parseDice=parseDice;   // pruebas
@@ -966,7 +962,6 @@ function commitCard(c){
   if(!armed)return;
   armed=false;clearTimeout(listenTimer);clearTimeout(commitTimer);pendingKey=null;
   setCue('off');stopMic();
-  if(RELAY) rxSend({t:'card',r:c.r,s:c.s});   // MANDO: envía la carta al móvil del espectador
   drawCard(c.r,c.s);
 }
 window.__drawCard=drawCard; window.__parseCard=parseCard;
@@ -1029,7 +1024,6 @@ function commitDraw(tok){
   if(!armed)return;
   armed=false;clearTimeout(listenTimer);clearTimeout(commitTimer);pendingKey=null;
   setCue('off');stopMic();
-  if(RELAY){ if(tok.charAt(0)==='#') rxSend({t:'num',v:parseInt(tok.slice(1),10)}); else rxSend({t:'word',v:tok}); }   // MANDO: envía al móvil del espectador
   if(tok.charAt(0)==='#') drawNumber(parseInt(tok.slice(1),10));   // rutina de NÚMERO
   else drawObject(tok);                                            // rutina de PALABRA
 }
@@ -1155,7 +1149,6 @@ function cancelListen(){   // corta la escucha (por si armaste por error) y fina
   setCue('off');stopMic();
 }
 function arm(mode){
-  if(RX_ROOM)return;              // receptor: nunca pide micro en el móvil del espectador
   if(armed)return;
   if(!voskReady){
     if(voskLoading)toast('Cargando la voz… espera un momentito',2500);
@@ -1197,7 +1190,6 @@ function cpos(e){var r=cv.getBoundingClientRect();
   var x=(e.clientX!=null?e.clientX:e.touches[0].clientX)-r.left;
   var y=(e.clientY!=null?e.clientY:e.touches[0].clientY)-r.top;return [x,y];}
 cv.addEventListener('pointerdown',function(e){
-  if(RX_ROOM||ESPIA!=null)return;   // receptor o espía: no se dibuja con el dedo aquí
   if(!helpReady())return;
   drawing=true;var p=cpos(e);cur=[p];userStrokes.push(cur);
   brushStyle();dot(p);
@@ -1329,213 +1321,8 @@ function afterUnlock(){
 
 window.__drawObject=drawObject;   // para pruebas
 
-/* ============================================================================
-   VÍNCULO EN TIEMPO REAL — dibujar en el móvil del espectador
-   - El espectador abre .../lienzo?receptor=SALA  => MODO RECEPTOR:
-     la MISMA pantalla de dibujo (réplica de Instagram), SIN micro, a pantalla
-     completa, con la pantalla mantenida despierta; solo dibuja lo que llega.
-   - Tu móvil (MANDO, interruptor en Ajustes) reconoce y envía a esa SALA.
-   Las claves del cliente son públicas; la seguridad va por las reglas de la BD.
-   ============================================================================ */
-var QP=new URLSearchParams(location.search);
-var RX_ROOM=QP.get('receptor')||QP.get('rx')||null;         // presente => este móvil ES el receptor
-var DEFAULT_ROOM='sala-esttik-7c1';
-var LINK_ROOM=QP.get('mando')||DEFAULT_ROOM;                 // sala que usa el mando
-var RELAY=false;                                            // ¿enviar los dibujos al receptor?
-var EMISOR=(QP.get('emisor')!==null);                       // ESTE móvil (espectador) ENVÍA en directo lo que dibuja
-var BUSCAR=(QP.get('buscar')!==null);                       // ESTE móvil (espectador) = Google FALSO: envía en directo lo que escribe
-var ESPIA=QP.get('espia');                                  // ESTE móvil (mago) VE lo que hace el espectador (null = no)
-var FB_CONFIG={ databaseURL:"https://lienzo-magia-default-rtdb.firebaseio.com", projectId:"lienzo-magia" };   /* base en tiempo real (para RTDB basta la databaseURL) */
-var fbDb=null,fbReady=false;
-function loadFirebase(){return new Promise(function(res,rej){
-  if(window.firebase&&window.firebase.database)return res();
-  var a=document.createElement('script');a.src='https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js';
-  a.onload=function(){var b=document.createElement('script');b.src='https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js';
-    b.onload=function(){res();};b.onerror=function(){rej();};document.head.appendChild(b);};
-  a.onerror=function(){rej();};document.head.appendChild(a);});}
-function fbInit(){
-  if(fbReady)return Promise.resolve(true);
-  if(!FB_CONFIG.databaseURL)return Promise.resolve(false);
-  return loadFirebase().then(function(){
-    try{window.firebase.initializeApp(FB_CONFIG);}catch(_){}
-    fbDb=window.firebase.database();fbReady=true;return true;
-  }).catch(function(){return false;});
-}
-/* mantener la pantalla despierta (reveal boca abajo) */
-var _wl=null;
-function keepAwake(){try{if('wakeLock' in navigator)navigator.wakeLock.request('screen').then(function(w){_wl=w;}).catch(function(){});}catch(_){}}
-document.addEventListener('visibilitychange',function(){if(!document.hidden)keepAwake();});
-/* pantalla completa REAL donde el sistema lo permite (Android/iPad): requiere un gesto del usuario.
-   En iPhone Safari NO existe (Apple no lo permite en pestaña); ahí se usa "Añadir a inicio". */
-function goFullscreen(){var el=document.documentElement,fn=el.requestFullscreen||el.webkitRequestFullscreen;if(fn){try{fn.call(el);}catch(_){}}}
-/* RECEPTOR: dibuja lo que llega */
-function rxDraw(c){
-  if(!c)return;
-  if(c.t==='word')drawObject(c.v);
-  else if(c.t==='num')drawNumber(c.v);
-  else if(c.t==='dice')drawDiceRemote(c.v);
-  else if(c.t==='card')drawCardRemote(c.r,c.s);
-  else if(c.t==='clear'){clearCanvas();userStrokes=[];}
-}
-window.__rxDraw=rxDraw;   // pruebas
-/* el receptor dibuja SUS PROPIOS cuadrados/rectángulo (el espectador no dibuja nada) */
-function rxSquare(cx,cy,sz){
-  var h=sz/2,pts=[[cx-h,cy-h],[cx+h,cy-h],[cx+h,cy+h],[cx-h,cy+h],[cx-h,cy-h]],s=[],i,t;
-  for(i=0;i<pts.length-1;i++){var a=pts[i],b=pts[i+1];for(t=0;t<1;t+=0.12)s.push([a[0]+(b[0]-a[0])*t,a[1]+(b[1]-a[1])*t]);}
-  s.push(pts[0]);curWarp=makeWarp();userStrokes.push(prep(s));
-}
-function drawDiceRemote(nums){
-  if(!nums||!nums.length)return;
-  clearCanvas();userStrokes=[];
-  var sz=Math.min(CW,CH)*0.24,cy=CH*0.5,xs=[CW*0.28,CW*0.5,CW*0.72];
-  for(var i=0;i<3;i++) rxSquare(xs[i],cy,sz);   // 3 dados hechos a mano
-  drawDice(nums.slice(0,3));                     // pone los puntos dentro de cada cuadrado
-}
-function drawCardRemote(r,s){
-  clearCanvas();userStrokes=[];
-  var w=Math.min(CW,CH)*0.5,h=Math.min(w*1.4,CH*0.72),cx=CW*0.5,cy=CH*0.5;
-  var pts=[[cx-w/2,cy-h/2],[cx+w/2,cy-h/2],[cx+w/2,cy+h/2],[cx-w/2,cy+h/2],[cx-w/2,cy-h/2]],st=[],i,t;
-  for(i=0;i<pts.length-1;i++){var a=pts[i],b=pts[i+1];for(t=0;t<1;t+=0.07)st.push([a[0]+(b[0]-a[0])*t,a[1]+(b[1]-a[1])*t]);}
-  st.push(pts[0]);curWarp=makeWarp();userStrokes.push(prep(st));   // rectángulo hecho a mano
-  drawCard(r,s);                                                   // valor + palo dentro
-}
-function startReceiver(room){
-  var g=document.getElementById('gear');if(g)g.style.display='none';   // sin ajustes visibles en el móvil del espectador
-  var bz=document.getElementById('brushzone');if(bz)bz.style.display='none';   // sin barra de grosor: el trazo del reveal NO cambia
-  brushFactor=0.42;                                                            // grosor fijo y controlado (evita trazos demasiado gordos)
-  resize();keepAwake();
-  document.addEventListener('pointerdown',function(){keepAwake();goFullscreen();});   // 1er toque: pantalla despierta + pantalla completa real (Android/iPad)
-  fbInit().then(function(ok){ if(!ok)return;
-    var ref=fbDb.ref('rooms/'+room+'/cmd');
-    ref.once('value').then(function(base){
-      var seen=(base.val()&&base.val().n)||0;   // línea base: ignora una orden VIEJA que hubiera al entrar
-      ref.on('value',function(snap){var c=snap.val();if(!c)return;
-        if((c.n||0)<=seen)return;seen=c.n||0;rxDraw(c);});   // dibuja SOLO órdenes nuevas (también la 1ª en sala vacía)
-    });
-  });
-}
-/* MANDO: envía el dibujo al receptor */
-function rxSend(cmd){ if(!RELAY)return; fbInit().then(function(ok){ if(!ok)return; cmd.n=Date.now(); fbDb.ref('rooms/'+LINK_ROOM+'/cmd').set(cmd); }); }
-window.__rxSend=rxSend;   // pruebas
-if(QP.get('mando')||lsGet('lienzo_link')==='1')RELAY=true;
-/* interruptor "modo mando" en Ajustes */
-(function(){ var el=document.getElementById('setLinkTrig'); if(!el)return;
-  function rl(){ el.textContent='Modo mando (móvil del espectador): '+(RELAY?'Activado':'Desactivado'); }
-  el.addEventListener('click',function(){ RELAY=!RELAY; lsSet('lienzo_link',RELAY?'1':'0'); rl();
-    toast(RELAY?'Modo mando activado: se dibujará en el móvil vinculado':'Modo mando desactivado',2400); });
-  var gg=document.getElementById('gear'); if(gg)gg.addEventListener('click',rl); rl();
-})();
-
-/* ===================== ESPEJO EN DIRECTO (el mago VE lo que dibuja el espectador) =====================
-   - Espectador abre .../lienzo?emisor=1  => muestra un CÓDIGO y ENVÍA en vivo lo que dibuja.
-   - Mago abre .../lienzo?espia=1  => teclea el código ("calculadora") y VE en vivo lo que dibuja. */
-function normStrokes(){   // trazos a fracción 0..1 (para que encaje en cualquier pantalla)
-  return userStrokes.map(function(s){return s.map(function(p){return [Math.round(p[0]/CW*1e4)/1e4, Math.round(p[1]/CH*1e4)/1e4];});});
-}
-function liveSig(){   // firma rápida para enviar solo cuando cambia
-  var n=userStrokes.length,tot=0,i,lp='';
-  for(i=0;i<n;i++)tot+=userStrokes[i].length;
-  var last=userStrokes[n-1]; if(last&&last.length){var q=last[last.length-1];lp=Math.round(q[0])+','+Math.round(q[1]);}
-  return n+':'+tot+':'+lp;
-}
-function showSpyText(t){
-  var el=document.getElementById('__spytext');
-  if(!el){el=document.createElement('div');el.id='__spytext';
-    el.style.cssText='position:fixed;inset:0;z-index:40;display:flex;align-items:center;justify-content:center;color:#fff;font:600 clamp(28px,7vw,54px) -apple-system,sans-serif;text-align:center;padding:26px;word-break:break-word;';
-    document.body.appendChild(el);}
-  el.textContent=(t&&t.length)?t:'…';
-}
-function hideSpyText(){var el=document.getElementById('__spytext');if(el)el.parentNode.removeChild(el);}
-function renderLive(payload){
-  if(anim){cancelAnimationFrame(anim);anim=null;}
-  if(payload&&payload.txt!=null){ ctx.clearRect(0,0,CW,CH); showSpyText(payload.txt); return; }   // TEXTO (buscador)
-  hideSpyText();
-  ctx.clearRect(0,0,CW,CH);
-  if(!payload||!payload.s)return;
-  brushStyle();var bw=brushWidth();
-  payload.s.forEach(function(s){
-    if(!s.length)return; ctx.lineWidth=bw;
-    if(s.length===1){var p=s[0];ctx.beginPath();ctx.arc(p[0]*CW,p[1]*CH,bw/2,0,7);ctx.fillStyle='#fff';ctx.fill();return;}
-    ctx.beginPath();ctx.moveTo(s[0][0]*CW,s[0][1]*CH);
-    for(var i=1;i<s.length;i++)ctx.lineTo(s[i][0]*CW,s[i][1]*CH);
-    ctx.stroke();
-  });
-}
-function showCode(code){   // el número que ve el espectador (código de emparejamiento disfrazado)
-  var d=document.createElement('div');d.textContent=code;
-  d.style.cssText='position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:50;color:#fff;font:700 66px -apple-system,sans-serif;letter-spacing:8px;pointer-events:none;';
-  document.body.appendChild(d);
-  document.addEventListener('pointerdown',function(){d.style.transition='opacity .4s';d.style.opacity='0';setTimeout(function(){if(d.parentNode)d.parentNode.removeChild(d);},450);},{once:true});
-}
-function startEmisor(){
-  var g=document.getElementById('gear');if(g)g.style.display='none';
-  resize();keepAwake();
-  document.addEventListener('pointerdown',function(){keepAwake();goFullscreen();});
-  var code=(''+Math.floor(1000+Math.random()*9000));
-  showCode(code);
-  fbInit().then(function(ok){ if(!ok)return;
-    var ref=fbDb.ref('rooms/'+code+'/live'),lastSig='';
-    setInterval(function(){ var sig=liveSig(); if(sig!==lastSig){lastSig=sig; ref.set({s:normStrokes(),t:Date.now()});} },180);
-  });
-}
-function connectEspia(code){
-  var b=document.getElementById('brushzone');if(b)b.style.display='none';
-  fbInit().then(function(ok){ if(!ok)return;
-    fbDb.ref('rooms/'+code+'/live').on('value',function(snap){ renderLive(snap.val()); });
-  });
-}
-function showKeypad(){   // "calculadora" para teclear el código y conectar
-  var wrap=document.createElement('div');
-  wrap.style.cssText='position:fixed;inset:0;z-index:60;background:#000;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;';
-  var disp=document.createElement('div');disp.style.cssText='color:#fff;font:600 46px -apple-system,sans-serif;min-height:54px;letter-spacing:4px;';
-  var grid=document.createElement('div');grid.style.cssText='display:grid;grid-template-columns:repeat(3,78px);gap:12px;';
-  var val='';function upd(){disp.textContent=val||'····';}
-  ['1','2','3','4','5','6','7','8','9','C','0','='].forEach(function(k){
-    var bt=document.createElement('button');bt.textContent=k;
-    bt.style.cssText='height:78px;border-radius:50%;border:0;background:'+(k==='='?'#0a84ff':'#1c1c1e')+';color:#fff;font:600 30px -apple-system,sans-serif;';
-    bt.onclick=function(){ if(k==='C')val=''; else if(k==='='){ if(/^\d{3,6}$/.test(val)){document.body.removeChild(wrap);connectEspia(val);} } else if(val.length<6)val+=k; upd(); };
-    grid.appendChild(bt);
-  });
-  upd();wrap.appendChild(disp);wrap.appendChild(grid);document.body.appendChild(wrap);
-}
-window.__renderLive=renderLive;   // pruebas
-function startBuscador(){   // Google FALSO: lo que escribe el espectador me llega en directo
-  var code=(''+Math.floor(1000+Math.random()*9000));
-  var ov=document.createElement('div');
-  ov.style.cssText='position:fixed;inset:0;z-index:100;background:#fff;display:flex;flex-direction:column;align-items:center;padding-top:calc(env(safe-area-inset-top) + 20vh);font-family:arial,helvetica,sans-serif;';
-  ov.innerHTML=
-    '<div style="font-size:54px;font-weight:500;letter-spacing:-2px;margin-bottom:26px;">'
-    +'<span style="color:#4285F4">G</span><span style="color:#EA4335">o</span><span style="color:#FBBC05">o</span><span style="color:#4285F4">g</span><span style="color:#34A853">l</span><span style="color:#EA4335">e</span></div>'
-    +'<div style="width:88%;max-width:520px;display:flex;align-items:center;gap:12px;border:1px solid #dfe1e5;border-radius:24px;padding:12px 18px;box-shadow:0 1px 6px rgba(32,33,36,.18);">'
-    +'<span style="color:#9aa0a6;font-size:18px;">&#128269;</span>'
-    +'<input id="__q" inputmode="search" autocomplete="off" autocapitalize="none" spellcheck="false" '
-    +'style="border:0;outline:0;flex:1;font-size:18px;color:#202124;background:transparent;" /></div>'
-    +'<div style="margin-top:36px;color:#70757a;font-size:13px;letter-spacing:1px;">'+code+'</div>';
-  document.body.appendChild(ov);
-  keepAwake();
-  document.addEventListener('pointerdown',function(){keepAwake();goFullscreen();});
-  var inp=document.getElementById('__q');
-  setTimeout(function(){try{inp.focus();}catch(_){}} ,300);
-  fbInit().then(function(ok){ if(!ok)return;
-    var ref=fbDb.ref('rooms/'+code+'/live'),last=null;
-    function push(){ var v=inp.value; if(v!==last){last=v; ref.set({txt:v,t:Date.now()});} }
-    inp.addEventListener('input',push);
-    setInterval(push,250);   // refuerzo por si algún teclado no dispara 'input'
-  });
-}
-function startEspia(code){
-  var g=document.getElementById('gear');if(g)g.style.display='none';
-  resize();
-  if(code&&/^\d{3,6}$/.test(code)) connectEspia(code);   // ?espia=1234 conecta directo
-  else showKeypad();                                     // ?espia=1 abre la "calculadora"
-}
-
 resize();
-if(RX_ROOM){ startReceiver(RX_ROOM); }                  // receptor: dibuja lo que le envían
-else if(EMISOR){ startEmisor(); }                       // espectador: envía en vivo lo que dibuja
-else if(BUSCAR){ startBuscador(); }                     // espectador: Google falso, envía lo que escribe
-else if(ESPIA!=null){ startEspia(ESPIA); }              // mago: ve en vivo lo que hace el espectador
-else if(lsGet(LS_ONB)==='1') startApp();
+if(lsGet(LS_ONB)==='1') startApp();
 else showOnboard();
 })();
 </script>
