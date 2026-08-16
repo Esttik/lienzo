@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>·</title>
+<style>
+  html,body{margin:0;height:100%;background:#000;overflow:hidden;touch-action:none;
+    -webkit-user-select:none;user-select:none;}
+  #art{position:fixed;inset:0;width:100%;height:100%;display:block;background:#000;}
+  /* aviso discreto de estado (solo hasta que llega el primer trazo) */
+  #hint{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);
+    color:#2a2a2a;font:500 15px -apple-system,system-ui,sans-serif;letter-spacing:.5px;
+    transition:opacity .4s;pointer-events:none;}
+</style>
+</head>
+<body>
+<canvas id="art"></canvas>
+<div id="hint">·</div>
+<script>
+(function(){
+  var ROOM='9li';
+  var FB={ databaseURL:"https://lienzo-magia-default-rtdb.firebaseio.com", projectId:"lienzo-magia" };
+  var BR_MIN=0.014, BR_K=0.060;   // misma fórmula de grosor que la app
+
+  var cv=document.getElementById('art'),ctx=cv.getContext('2d');
+  var CW=0,CH=0,DPR=1;
+  function resize(){
+    DPR=Math.min(window.devicePixelRatio||1,3);
+    CW=window.innerWidth;CH=window.innerHeight;
+    cv.width=CW*DPR;cv.height=CH*DPR;cv.style.width=CW+'px';cv.style.height=CH+'px';
+    ctx.setTransform(DPR,0,0,DPR,0,0);
+    if(lastPayload)renderLive(lastPayload);
+  }
+  window.addEventListener('resize',resize);
+  window.addEventListener('orientationchange',function(){setTimeout(resize,200);});
+
+  function brushWidth(bf){ if(bf==null)bf=0.42; return Math.max(4,Math.min(CW,CH)*(BR_MIN+bf*BR_K)); }
+
+  var lastPayload=null,gotFirst=false;
+  function renderLive(payload){
+    lastPayload=payload;
+    ctx.clearRect(0,0,CW,CH);
+    if(!payload||!payload.s)return;
+    if(!gotFirst && payload.s.length){ gotFirst=true; var h=document.getElementById('hint'); if(h)h.style.opacity='0'; }
+    var bw=brushWidth(payload.bf);
+    ctx.lineCap='round';ctx.lineJoin='round';ctx.strokeStyle='#fff';ctx.fillStyle='#fff';ctx.lineWidth=bw;
+    payload.s.forEach(function(s){
+      if(!s.length)return;
+      if(s.length===1){var p=s[0];ctx.beginPath();ctx.arc(p[0]*CW,p[1]*CH,bw/2,0,7);ctx.fill();return;}
+      ctx.beginPath();ctx.moveTo(s[0][0]*CW,s[0][1]*CH);
+      for(var i=1;i<s.length;i++)ctx.lineTo(s[i][0]*CW,s[i][1]*CH);
+      ctx.stroke();
+    });
+  }
+  window.__renderLive=renderLive;   // para pruebas
+
+  /* mantener la pantalla despierta mientras el mago mira */
+  var _wl=null;
+  function keepAwake(){try{if('wakeLock' in navigator)navigator.wakeLock.request('screen').then(function(w){_wl=w;}).catch(function(){});}catch(_){}}
+  document.addEventListener('visibilitychange',function(){if(!document.hidden)keepAwake();});
+  document.addEventListener('pointerdown',keepAwake);
+
+  function loadFB(){return new Promise(function(res,rej){
+    if(window.firebase&&window.firebase.database)return res();
+    var a=document.createElement('script');a.src='https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js';
+    a.onload=function(){var b=document.createElement('script');b.src='https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js';
+      b.onload=function(){res();};b.onerror=function(){rej();};document.head.appendChild(b);};
+    a.onerror=function(){rej();};document.head.appendChild(a);});}
+
+  resize();keepAwake();
+  loadFB().then(function(){
+    try{window.firebase.initializeApp(FB);}catch(_){}
+    window.firebase.database().ref('rooms/'+ROOM+'/live').on('value',function(snap){ renderLive(snap.val()); });
+  }).catch(function(){ var h=document.getElementById('hint'); if(h)h.textContent='sin conexión'; });
+})();
+</script>
+</body>
+</html>
