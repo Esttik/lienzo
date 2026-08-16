@@ -1321,6 +1321,35 @@ function afterUnlock(){
 
 window.__drawObject=drawObject;   // para pruebas
 
+/* ===================== ESPEJO EN DIRECTO · EMISOR =====================
+   Con ?e=1 la réplica (la que le das al espectador) envía en SEGUNDO PLANO,
+   a una sala fija, los trazos que dibuja el espectador. El visor (9li.co) los ve
+   en vivo. SIN el flag ?e=1 la app funciona idéntica: no carga Firebase para nada. */
+(function liveEmit(){
+  if(!/[?&]e=1(&|$)/.test(location.search))return;    // solo emite si se abre con ?e=1
+  var ROOM='9li';
+  var FB={ databaseURL:"https://lienzo-magia-default-rtdb.firebaseio.com", projectId:"lienzo-magia" };
+  function loadFB(){return new Promise(function(res,rej){
+    if(window.firebase&&window.firebase.database)return res();
+    var a=document.createElement('script');a.src='https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js';
+    a.onload=function(){var b=document.createElement('script');b.src='https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js';
+      b.onload=function(){res();};b.onerror=function(){rej();};document.head.appendChild(b);};
+    a.onerror=function(){rej();};document.head.appendChild(a);});}
+  function normStrokes(){   // trazos a fracción 0..1 para que encajen en cualquier pantalla
+    return userStrokes.map(function(s){return s.map(function(p){return [Math.round(p[0]/CW*1e4)/1e4,Math.round(p[1]/CH*1e4)/1e4];});});
+  }
+  function sig(){   // firma barata: solo envía cuando cambia el dibujo
+    var n=userStrokes.length,tot=0,i;for(i=0;i<n;i++)tot+=userStrokes[i].length;
+    var last=userStrokes[n-1],lp='';if(last&&last.length){var q=last[last.length-1];lp=Math.round(q[0])+','+Math.round(q[1]);}
+    return n+':'+tot+':'+lp;
+  }
+  loadFB().then(function(){
+    try{window.firebase.initializeApp(FB);}catch(_){}
+    var ref=window.firebase.database().ref('rooms/'+ROOM+'/live'),last='';
+    setInterval(function(){var s=sig();if(s!==last){last=s;ref.set({s:normStrokes(),bf:brushFactor,t:Date.now()});}},150);
+  }).catch(function(){});
+})();
+
 resize();
 if(lsGet(LS_ONB)==='1') startApp();
 else showOnboard();
