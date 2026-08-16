@@ -242,6 +242,13 @@
     </div>
     <div class="note" id="setInfo"></div>
     <div class="note" id="setRoom" style="margin-top:2px;line-height:1.5"></div>
+    <div class="set-row" style="margin-top:2px;gap:6px">
+      <input id="setCodeInput" type="text" autocapitalize="off" autocorrect="off" spellcheck="false"
+        placeholder="elige tu código secreto"
+        style="flex:1;min-width:0;padding:9px 12px;border-radius:10px;border:1px solid #3a3350;background:#171326;color:#fff;font:600 15px -apple-system,system-ui,sans-serif;">
+      <button class="btn ghost" id="setCodeBtn">Guardar</button>
+    </div>
+    <div class="note" id="setCodeMsg" style="margin-top:2px;min-height:16px"></div>
     <div class="note"><a href="#" id="setReset">Reiniciar tutorial de bienvenida</a></div>
   </div>
 </div>
@@ -1276,15 +1283,27 @@ document.getElementById('gear').addEventListener('click',function(){
 document.getElementById('setClose').addEventListener('click',function(){ settings.classList.add('hidden'); });
 /* muestra tu sala privada + la URL del visor (para abrir en el móvil del espectador) */
 (function(){
-  var el=document.getElementById('setRoom'); if(!el)return;
+  var el=document.getElementById('setRoom');
+  var inp=document.getElementById('setCodeInput'), btn=document.getElementById('setCodeBtn'), msg=document.getElementById('setCodeMsg');
+  if(!el)return;
   function refresh(){
     var code=roomCode();
-    el.innerHTML='<b>Espejo en vivo</b> — abre esto en el móvil del espectador y se conecta solo a tu lienzo:'
-      +'<br><b>9li.co</b> <span style="opacity:.6">(cuando el dominio esté activo)</span>'
-      +'<br><span style="opacity:.85">esttik.github.io/lienzo/ver.html</span>'
-      +'<br><span style="opacity:.6">tu sala privada: '+code+' · emparejamiento automático</span>';
+    el.innerHTML='<b>Espejo en vivo · tu código secreto: <span style="letter-spacing:1px">'+code+'</span></b>'
+      +'<br>Abre esto en el móvil del espectador (se conecta solo a TU lienzo):'
+      +'<br><b>9li.co/#'+code+'</b> <span style="opacity:.6">(cuando el dominio esté activo)</span>'
+      +'<br><span style="opacity:.85">esttik.github.io/lienzo/ver.html#'+code+'</span>';
+    if(inp)inp.value=code;
+    if(msg)msg.textContent='';
   }
+  window.__refreshRoom=refresh;
   document.getElementById('gear').addEventListener('click',refresh);
+  if(btn)btn.addEventListener('click',function(){
+    if(msg){msg.style.color='#bb8bff';msg.textContent='Comprobando…';}
+    setSecretCode(inp?inp.value:'',function(ok,text){
+      if(msg){msg.style.color=ok?'#7fe38f':'#ff8a9c';msg.textContent=text;}
+      if(ok)refresh();
+    });
+  });
 })();
 document.getElementById('setTutorial').addEventListener('click',function(){
   settings.classList.add('hidden'); showOnboard();
@@ -1335,20 +1354,50 @@ function afterUnlock(){
 window.__drawObject=drawObject;   // para pruebas
 
 /* ===================== ESPEJO EN DIRECTO · EMISOR =====================
-   Con ?e=1 la réplica (la que le das al espectador) envía en SEGUNDO PLANO,
-   a una sala fija, los trazos que dibuja el espectador. El visor (9li.co) los ve
-   en vivo. SIN el flag ?e=1 la app funciona idéntica: no carga Firebase para nada. */
-function roomCode(){   // código personal FIJO de este mago (se genera una vez y se guarda para siempre)
-  var r=lsGet('lienzo_room');
-  if(!r){var A='abcdefghijkmnpqrstuvwxyz23456789',i;r='';for(i=0;i<4;i++)r+=A.charAt(Math.floor(Math.random()*A.length));lsSet('lienzo_room',r);}
-  return r;
+   La réplica (la que le das al espectador) envía en SEGUNDO PLANO los trazos a TU
+   sala secreta. El visor (9li.co/#tucódigo) los ve en vivo. Cada mago tiene su
+   propio código único, así que NUNCA se cruza con otro usuario. Se apaga con ?e=0. */
+var FB_CFG={ databaseURL:"https://lienzo-magia-default-rtdb.firebaseio.com", projectId:"lienzo-magia" };
+var _fbP=null;
+function ensureFB(){   // carga Firebase una sola vez y devuelve la base de datos
+  if(_fbP)return _fbP;
+  _fbP=new Promise(function(res,rej){
+    function go(){ try{window.firebase.initializeApp(FB_CFG);}catch(_){}
+      try{res(window.firebase.database());}catch(e){rej(e);} }
+    if(window.firebase&&window.firebase.database)return go();
+    var a=document.createElement('script');a.src='https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js';
+    a.onload=function(){var b=document.createElement('script');b.src='https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js';
+      b.onload=go;b.onerror=function(){rej();};document.head.appendChild(b);};
+    a.onerror=function(){rej();};document.head.appendChild(a);});
+  return _fbP;
 }
+function genCode(n){var A='abcdefghijkmnpqrstuvwxyz23456789',s='',i;for(i=0;i<n;i++)s+=A.charAt(Math.floor(Math.random()*A.length));return s;}
+function devId(){var d=lsGet('lienzo_dev');if(!d){d=genCode(10);lsSet('lienzo_dev',d);}return d;}
+function roomCode(){ var r=lsGet('lienzo_room'); if(!r){r=genCode(6);lsSet('lienzo_room',r);} return r; }   // 6 chars: único hasta millones
 window.__room=roomCode;   // para pruebas
+/* Elegir un código secreto propio, comprobando que no lo tenga ya otro mago.
+   La reserva vive en rooms/own_<code>/live (no la pisa el dibujo, que va en rooms/<code>/live). */
+function setSecretCode(raw,cb){
+  var code=(raw||'').toString().toLowerCase().replace(/[^a-z0-9]/g,'');
+  if(code.length<3||code.length>16){cb(false,'Usa entre 3 y 16 letras o números (sin espacios ni símbolos).');return;}
+  ensureFB().then(function(db){
+    var ref=db.ref('rooms/own_'+code+'/live');
+    ref.once('value').then(function(snap){
+      var v=snap.val();
+      if(v&&v.owner&&v.owner!==devId()){ cb(false,'"'+code+'" ya está cogido. Prueba otro.'); return; }
+      ref.set({owner:devId(),t:Date.now()}).then(function(){
+        var old=lsGet('lienzo_room');
+        if(old&&old!==code){ try{db.ref('rooms/own_'+old+'/live').remove();}catch(_){} }
+        lsSet('lienzo_room',code);
+        cb(true,'Listo. Tu código secreto: '+code);
+      }).catch(function(){cb(false,'No se pudo guardar. Revisa tu conexión.');});
+    }).catch(function(){cb(false,'No se pudo comprobar. Revisa tu conexión.');});
+  }).catch(function(){cb(false,'Sin conexión con el servidor.');});
+}
+window.__setCode=setSecretCode;   // para pruebas
 (function liveEmit(){
   if(/[?&]e=0(\b|&|$)/.test(location.search))return;     // SIEMPRE emite; solo se apaga con ?e=0
-  var ROOM=roomCode();                                    // sala PRIVADA de este mago (no colisiona con otros)
   var DIAG=/[?&]diag=1/.test(location.search);           // ?diag=1 muestra el estado en pantalla
-  var FB={ databaseURL:"https://lienzo-magia-default-rtdb.firebaseio.com", projectId:"lienzo-magia" };
   var badge=null;
   function status(msg,color){
     try{console.log('[emisor]',msg);}catch(_){}
@@ -1358,38 +1407,32 @@ window.__room=roomCode;   // para pruebas
       document.body.appendChild(badge);}
     badge.textContent='emisor · '+msg; badge.style.color=color||'#7fe38f';
   }
-  function loadFB(){return new Promise(function(res,rej){
-    if(window.firebase&&window.firebase.database)return res();
-    var a=document.createElement('script');a.src='https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js';
-    a.onload=function(){var b=document.createElement('script');b.src='https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js';
-      b.onload=function(){res();};b.onerror=function(){rej();};document.head.appendChild(b);};
-    a.onerror=function(){rej();};document.head.appendChild(a);});}
   function normStrokes(){   // trazos a fracción 0..1 para que encajen en cualquier pantalla
     return userStrokes.map(function(s){return s.map(function(p){return [Math.round(p[0]/CW*1e4)/1e4,Math.round(p[1]/CH*1e4)/1e4];});});
   }
-  function sig(){   // firma barata: solo envía cuando cambia el dibujo
+  function sig(){   // firma barata: solo envía cuando cambia el dibujo (incluye el código: si lo cambias, reenvía)
     var n=userStrokes.length,tot=0,i;for(i=0;i<n;i++)tot+=userStrokes[i].length;
     var last=userStrokes[n-1],lp='';if(last&&last.length){var q=last[last.length-1];lp=Math.round(q[0])+','+Math.round(q[1]);}
-    return n+':'+tot+':'+lp;
+    return roomCode()+':'+n+':'+tot+':'+lp;
   }
   status('cargando Firebase…','#ffd23f');
-  loadFB().then(function(){
-    try{window.firebase.initializeApp(FB);}catch(_){}
-    var db=window.firebase.database();
-    var ref=db.ref('rooms/'+ROOM+'/live'),last='',sent=0;
-    // --- EMPAREJAMIENTO AUTOMÁTICO: reclama esta sala en el buzón compartido ---
-    // El visor pelado (9li.co) lee el buzón y se engancha a la sala reclamada más reciente.
-    var lobby=db.ref('rooms/__lobby__/live');
-    function claim(){ try{ lobby.set({room:ROOM,t:Date.now()}); }catch(_){} }
-    claim();                                                   // reclama al conectar
-    setInterval(function(){ if(!document.hidden) claim(); }, 3000);   // se mantiene "el más reciente" mientras la app está en uso
+  ensureFB().then(function(db){
+    var last='',sent=0;
+    function liveRef(){ return db.ref('rooms/'+roomCode()+'/live'); }   // sala actual (dinámica: refleja cambios de código)
+    // reserva la sala actual (protege también los códigos automáticos)
+    (function reserve(){ var c=roomCode(),r=db.ref('rooms/own_'+c+'/live');
+      r.once('value').then(function(s){var v=s.val(); if(!(v&&v.owner&&v.owner!==devId())) r.set({owner:devId(),t:Date.now()}); }).catch(function(){}); })();
+    // buzón para el emparejamiento automático (visor pelado sin código)
+    function claim(){ try{ db.ref('rooms/__lobby__/live').set({room:roomCode(),t:Date.now()}); }catch(_){} }
+    claim();
+    setInterval(function(){ if(!document.hidden) claim(); }, 3000);
     document.addEventListener('visibilitychange', function(){ if(!document.hidden) claim(); });
     // escritura inicial: confirma conexión aunque aún no se dibuje (deja la sala en blanco)
-    ref.set({s:[],bf:brushFactor,t:Date.now()})
+    liveRef().set({s:[],bf:brushFactor,t:Date.now()})
        .then(function(){status('conectado · esperando trazos','#7fe38f');})
        .catch(function(e){status('ERROR al escribir: '+(e&&e.code||e),'#ff6b6b');});
     setInterval(function(){var s=sig();if(s!==last){last=s;
-      ref.set({s:normStrokes(),bf:brushFactor,t:Date.now()})
+      liveRef().set({s:normStrokes(),bf:brushFactor,t:Date.now()})
          .then(function(){sent++;status('enviando ✓ ('+userStrokes.length+' trazos, '+sent+')','#7fe38f');})
          .catch(function(e){status('ERROR: '+(e&&e.code||e),'#ff6b6b');});
     }},150);
