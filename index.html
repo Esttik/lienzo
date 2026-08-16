@@ -241,6 +241,7 @@
       <button class="btn ghost" id="setVolTrig">Botón de volumen (app): Activado</button>
     </div>
     <div class="note" id="setInfo"></div>
+    <div class="note" id="setRoom" style="margin-top:2px;line-height:1.5"></div>
     <div class="note"><a href="#" id="setReset">Reiniciar tutorial de bienvenida</a></div>
   </div>
 </div>
@@ -1273,6 +1274,18 @@ document.getElementById('gear').addEventListener('click',function(){
   settings.classList.remove('hidden');
 });
 document.getElementById('setClose').addEventListener('click',function(){ settings.classList.add('hidden'); });
+/* muestra tu sala privada + la URL del visor (para abrir en el móvil del espectador) */
+(function(){
+  var el=document.getElementById('setRoom'); if(!el)return;
+  function refresh(){
+    var code=roomCode();
+    el.innerHTML='<b>Espejo en vivo</b> · tu sala privada: <b style="letter-spacing:1px">'+code+'</b>'
+      +'<br>Abre el visor en el móvil del espectador:'
+      +'<br><b>9li.co/#'+code+'</b> <span style="opacity:.6">(cuando el dominio esté activo)</span>'
+      +'<br><span style="opacity:.85">esttik.github.io/lienzo/ver.html?r='+code+'</span>';
+  }
+  document.getElementById('gear').addEventListener('click',refresh);
+})();
 document.getElementById('setTutorial').addEventListener('click',function(){
   settings.classList.add('hidden'); showOnboard();
 });
@@ -1325,9 +1338,15 @@ window.__drawObject=drawObject;   // para pruebas
    Con ?e=1 la réplica (la que le das al espectador) envía en SEGUNDO PLANO,
    a una sala fija, los trazos que dibuja el espectador. El visor (9li.co) los ve
    en vivo. SIN el flag ?e=1 la app funciona idéntica: no carga Firebase para nada. */
+function roomCode(){   // código personal FIJO de este mago (se genera una vez y se guarda para siempre)
+  var r=lsGet('lienzo_room');
+  if(!r){var A='abcdefghijkmnpqrstuvwxyz23456789',i;r='';for(i=0;i<4;i++)r+=A.charAt(Math.floor(Math.random()*A.length));lsSet('lienzo_room',r);}
+  return r;
+}
+window.__room=roomCode;   // para pruebas
 (function liveEmit(){
   if(/[?&]e=0(\b|&|$)/.test(location.search))return;     // SIEMPRE emite; solo se apaga con ?e=0
-  var ROOM='9li';
+  var ROOM=roomCode();                                    // sala PRIVADA de este mago (no colisiona con otros)
   var DIAG=/[?&]diag=1/.test(location.search);           // ?diag=1 muestra el estado en pantalla
   var FB={ databaseURL:"https://lienzo-magia-default-rtdb.firebaseio.com", projectId:"lienzo-magia" };
   var badge=null;
