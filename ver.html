@@ -71,15 +71,29 @@
     a.onerror=function(){rej();};document.head.appendChild(a);});}
 
   resize();keepAwake();
-  if(!ROOM){   // sin código no se puede saber a quién escuchar
-    var hn=document.getElementById('hint');
-    if(hn){hn.style.color='#666';hn.style.font='500 16px -apple-system,system-ui,sans-serif';
-      hn.innerHTML='Añade tu código:<br>9li.co/#tucodigo';}
-    return;
-  }
   loadFB().then(function(){
     try{window.firebase.initializeApp(FB);}catch(_){}
-    window.firebase.database().ref('rooms/'+ROOM+'/live').on('value',function(snap){ renderLive(snap.val()); });
+    var db=window.firebase.database();
+    if(ROOM){   // modo manual (para pruebas): sala fija por URL
+      db.ref('rooms/'+ROOM+'/live').on('value',function(snap){ renderLive(snap.val()); });
+      return;
+    }
+    // --- EMPAREJAMIENTO AUTOMÁTICO ---
+    // Sigue el buzón compartido y se engancha a la sala reclamada más reciente.
+    // Se BLOQUEA en cuanto recibe un dibujo real (deja de cambiar de sala).
+    var locked=false, curRoom=null, curRef=null;
+    var lobbyRef=db.ref('rooms/__lobby__/live');
+    lobbyRef.on('value',function(snap){
+      if(locked)return;
+      var v=snap.val(); if(!v||!v.room||v.room===curRoom)return;
+      curRoom=v.room;
+      if(curRef)curRef.off();
+      curRef=db.ref('rooms/'+curRoom+'/live');
+      curRef.on('value',function(s){
+        var p=s.val(); renderLive(p);
+        if(!locked && p && p.s && p.s.length){ locked=true; lobbyRef.off(); }   // llegó dibujo: fija esta sala
+      });
+    });
   }).catch(function(){ var h=document.getElementById('hint'); if(h)h.textContent='sin conexión'; });
 })();
 </script>
