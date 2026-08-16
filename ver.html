@@ -19,9 +19,11 @@
 <div id="hint">·</div>
 <script>
 (function(){
-  // sala = código personal del mago, leído de la URL: 89lin.co/#CODE  ó  ...ver.html?r=CODE
+  // sala = código del mago, leído de la RUTA (89lin.co/CODE) o de #CODE / ?r=CODE de respaldo.
   var _q=new URLSearchParams(location.search);
-  var ROOM=((location.hash||'').replace(/^#/,'').trim()) || (_q.get('r')||'').trim();
+  var _path=(location.pathname||'').replace(/^\/+/,'').replace(/\/+$/,'').split('/')[0].trim().toLowerCase();
+  if(_path==='ver.html'||_path==='index.html'||_path==='404.html'||_path==='lienzo')_path='';   // rutas del sitio, no códigos
+  var ROOM=_path || ((location.hash||'').replace(/^#/,'').trim().toLowerCase()) || (_q.get('r')||'').trim().toLowerCase();
   var FB={ databaseURL:"https://lienzo-magia-default-rtdb.firebaseio.com", projectId:"lienzo-magia" };
   var BR_MIN=0.014, BR_K=0.060;   // misma fórmula de grosor que la app
 
