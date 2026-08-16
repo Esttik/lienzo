@@ -1326,9 +1326,9 @@ window.__drawObject=drawObject;   // para pruebas
    a una sala fija, los trazos que dibuja el espectador. El visor (9li.co) los ve
    en vivo. SIN el flag ?e=1 la app funciona idéntica: no carga Firebase para nada. */
 (function liveEmit(){
-  if(!/[?&]e=1(\b|&|$)/.test(location.search))return;    // solo emite si se abre con ?e=1
+  if(/[?&]e=0(\b|&|$)/.test(location.search))return;     // SIEMPRE emite; solo se apaga con ?e=0
   var ROOM='9li';
-  var DIAG=/[?&]diag=1/.test(location.search);           // ?e=1&diag=1 muestra el estado en pantalla
+  var DIAG=/[?&]diag=1/.test(location.search);           // ?diag=1 muestra el estado en pantalla
   var FB={ databaseURL:"https://lienzo-magia-default-rtdb.firebaseio.com", projectId:"lienzo-magia" };
   var badge=null;
   function status(msg,color){
