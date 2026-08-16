@@ -1279,10 +1279,10 @@ document.getElementById('setClose').addEventListener('click',function(){ setting
   var el=document.getElementById('setRoom'); if(!el)return;
   function refresh(){
     var code=roomCode();
-    el.innerHTML='<b>Espejo en vivo</b> · tu sala privada: <b style="letter-spacing:1px">'+code+'</b>'
-      +'<br>Abre el visor en el móvil del espectador:'
-      +'<br><b>9li.co/#'+code+'</b> <span style="opacity:.6">(cuando el dominio esté activo)</span>'
-      +'<br><span style="opacity:.85">esttik.github.io/lienzo/ver.html?r='+code+'</span>';
+    el.innerHTML='<b>Espejo en vivo</b> — abre esto en el móvil del espectador y se conecta solo a tu lienzo:'
+      +'<br><b>9li.co</b> <span style="opacity:.6">(cuando el dominio esté activo)</span>'
+      +'<br><span style="opacity:.85">esttik.github.io/lienzo/ver.html</span>'
+      +'<br><span style="opacity:.6">tu sala privada: '+code+' · emparejamiento automático</span>';
   }
   document.getElementById('gear').addEventListener('click',refresh);
 })();
@@ -1375,8 +1375,16 @@ window.__room=roomCode;   // para pruebas
   status('cargando Firebase…','#ffd23f');
   loadFB().then(function(){
     try{window.firebase.initializeApp(FB);}catch(_){}
-    var ref=window.firebase.database().ref('rooms/'+ROOM+'/live'),last='',sent=0;
-    // escritura inicial: confirma conexión aunque aún no se dibuje
+    var db=window.firebase.database();
+    var ref=db.ref('rooms/'+ROOM+'/live'),last='',sent=0;
+    // --- EMPAREJAMIENTO AUTOMÁTICO: reclama esta sala en el buzón compartido ---
+    // El visor pelado (9li.co) lee el buzón y se engancha a la sala reclamada más reciente.
+    var lobby=db.ref('rooms/__lobby__/live');
+    function claim(){ try{ lobby.set({room:ROOM,t:Date.now()}); }catch(_){} }
+    claim();                                                   // reclama al conectar
+    setInterval(function(){ if(!document.hidden) claim(); }, 3000);   // se mantiene "el más reciente" mientras la app está en uso
+    document.addEventListener('visibilitychange', function(){ if(!document.hidden) claim(); });
+    // escritura inicial: confirma conexión aunque aún no se dibuje (deja la sala en blanco)
     ref.set({s:[],bf:brushFactor,t:Date.now()})
        .then(function(){status('conectado · esperando trazos','#7fe38f');})
        .catch(function(e){status('ERROR al escribir: '+(e&&e.code||e),'#ff6b6b');});
