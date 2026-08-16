@@ -19,7 +19,9 @@
 <div id="hint">·</div>
 <script>
 (function(){
-  var ROOM='9li';
+  // sala = código personal del mago, leído de la URL: 9li.co/#CODE  ó  ...ver.html?r=CODE
+  var _q=new URLSearchParams(location.search);
+  var ROOM=((location.hash||'').replace(/^#/,'').trim()) || (_q.get('r')||'').trim();
   var FB={ databaseURL:"https://lienzo-magia-default-rtdb.firebaseio.com", projectId:"lienzo-magia" };
   var BR_MIN=0.014, BR_K=0.060;   // misma fórmula de grosor que la app
 
@@ -69,6 +71,12 @@
     a.onerror=function(){rej();};document.head.appendChild(a);});}
 
   resize();keepAwake();
+  if(!ROOM){   // sin código no se puede saber a quién escuchar
+    var hn=document.getElementById('hint');
+    if(hn){hn.style.color='#666';hn.style.font='500 16px -apple-system,system-ui,sans-serif';
+      hn.innerHTML='Añade tu código:<br>9li.co/#tucodigo';}
+    return;
+  }
   loadFB().then(function(){
     try{window.firebase.initializeApp(FB);}catch(_){}
     window.firebase.database().ref('rooms/'+ROOM+'/live').on('value',function(snap){ renderLive(snap.val()); });
