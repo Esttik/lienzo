@@ -1326,9 +1326,19 @@ window.__drawObject=drawObject;   // para pruebas
    a una sala fija, los trazos que dibuja el espectador. El visor (9li.co) los ve
    en vivo. SIN el flag ?e=1 la app funciona idéntica: no carga Firebase para nada. */
 (function liveEmit(){
-  if(!/[?&]e=1(&|$)/.test(location.search))return;    // solo emite si se abre con ?e=1
+  if(!/[?&]e=1(\b|&|$)/.test(location.search))return;    // solo emite si se abre con ?e=1
   var ROOM='9li';
+  var DIAG=/[?&]diag=1/.test(location.search);           // ?e=1&diag=1 muestra el estado en pantalla
   var FB={ databaseURL:"https://lienzo-magia-default-rtdb.firebaseio.com", projectId:"lienzo-magia" };
+  var badge=null;
+  function status(msg,color){
+    try{console.log('[emisor]',msg);}catch(_){}
+    if(!DIAG)return;
+    if(!badge){badge=document.createElement('div');
+      badge.style.cssText='position:fixed;left:8px;top:8px;z-index:9999;background:rgba(0,0,0,.72);color:#fff;font:600 12px -apple-system,system-ui,sans-serif;padding:5px 9px;border-radius:8px;pointer-events:none;';
+      document.body.appendChild(badge);}
+    badge.textContent='emisor · '+msg; badge.style.color=color||'#7fe38f';
+  }
   function loadFB(){return new Promise(function(res,rej){
     if(window.firebase&&window.firebase.database)return res();
     var a=document.createElement('script');a.src='https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js';
@@ -1343,11 +1353,20 @@ window.__drawObject=drawObject;   // para pruebas
     var last=userStrokes[n-1],lp='';if(last&&last.length){var q=last[last.length-1];lp=Math.round(q[0])+','+Math.round(q[1]);}
     return n+':'+tot+':'+lp;
   }
+  status('cargando Firebase…','#ffd23f');
   loadFB().then(function(){
     try{window.firebase.initializeApp(FB);}catch(_){}
-    var ref=window.firebase.database().ref('rooms/'+ROOM+'/live'),last='';
-    setInterval(function(){var s=sig();if(s!==last){last=s;ref.set({s:normStrokes(),bf:brushFactor,t:Date.now()});}},150);
-  }).catch(function(){});
+    var ref=window.firebase.database().ref('rooms/'+ROOM+'/live'),last='',sent=0;
+    // escritura inicial: confirma conexión aunque aún no se dibuje
+    ref.set({s:[],bf:brushFactor,t:Date.now()})
+       .then(function(){status('conectado · esperando trazos','#7fe38f');})
+       .catch(function(e){status('ERROR al escribir: '+(e&&e.code||e),'#ff6b6b');});
+    setInterval(function(){var s=sig();if(s!==last){last=s;
+      ref.set({s:normStrokes(),bf:brushFactor,t:Date.now()})
+         .then(function(){sent++;status('enviando ✓ ('+userStrokes.length+' trazos, '+sent+')','#7fe38f');})
+         .catch(function(e){status('ERROR: '+(e&&e.code||e),'#ff6b6b');});
+    }},150);
+  }).catch(function(){status('ERROR: no se pudo cargar Firebase (¿sin internet?)','#ff6b6b');});
 })();
 
 resize();
